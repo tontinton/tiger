@@ -5,7 +5,9 @@ enum TokenType {
     Operation,
     Special,
     Number,
-    String,
+    Symbol,
+    Assignment,
+    Unknown,
 }
 
 #[derive(Clone)]
@@ -109,7 +111,7 @@ impl Iterator for Lexer {
                         self.index -= 1;
                         let value = self.eat_string();
                         match value {
-                            Some(x) => Some(Token { typ: TokenType::String, value: x }),
+                            Some(x) => Some(Token { typ: TokenType::Symbol, value: x }),
                             None => None,
                         }
                     }
@@ -217,7 +219,7 @@ impl Parser {
         };
 
         let type_id = token.typ.type_id();
-        if prev.is_none() && (type_id == TokenType::Number.type_id() || type_id == TokenType::String.type_id()) {
+        if prev.is_none() && (type_id == TokenType::Number.type_id() || type_id == TokenType::Symbol.type_id()) {
             let simple_node = Tree { token, left: None, right: None };
             return self.next_expression(Some(Box::new(simple_node)));
         };
@@ -230,17 +232,32 @@ impl Parser {
                 match c {
                     ';' => prev,
                     '=' => {
-                        let next = self.next_expression(None);
-                        let assignment_node = Tree { token, left: prev, right: next };
-                        Some(Box::new(assignment_node))
+                        let prev_token = match &prev {
+                            Some(x) => x.token.clone(),
+                            None => Token { typ: TokenType::Unknown, value: "?".to_string() },
+                        };
+
+                        if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
+                            println!("Error: assignment: {} is not a valid symbol", prev_token.value);
+                            None
+                        } else {
+                            Some(Box::new(Tree {
+                                token: Token { typ: TokenType::Assignment, value: token.value },
+                                left: prev,
+                                right: self.next_expression(None),
+                            }))
+                        }
                     }
-                    _ => None,
+                    _ => {
+                        println!("Error: special: found an unknown character");
+                        None
+                    }
                 }
             }
 
             TokenType::Operation => {
                 let operation_subtree = self.next_expression(None);
-                let operation_tree = Tree { token, left: prev, right: operation_subtree, };
+                let operation_tree = Tree { token, left: prev, right: operation_subtree };
 
                 match &operation_tree.right {
                     Some(x) => {
@@ -252,14 +269,17 @@ impl Parser {
                             Some(Box::new(operation_tree))
                         }
                     }
-                    None => None
+                    None => Some(Box::new(operation_tree)),
                 }
             }
-            _ => None,
+            _ => {
+                println!("Error: found an unknown token");
+                None
+            }
         };
 
         if result_tree.is_none() {
-            println!("PARSING ERROR: current: {}", token_value);
+            println!("Error: on token: {}", token_value);
         }
         result_tree
     }
@@ -274,7 +294,7 @@ impl Iterator for Parser {
 }
 
 fn main() {
-    let lexer = Lexer::new("3 * 6 + 123 * 55;");
+    let lexer = Lexer::new("asd = 3 * 6 + 123 * 55;");
     let parser = Parser::new(lexer.collect());
     for tree in parser {
         println!("{}", tree.to_string());
