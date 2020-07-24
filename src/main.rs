@@ -127,21 +127,38 @@ struct Tree {
     right: TreeNode,
 }
 
-fn get_subtree_string(tree: &TreeNode, tab_str: &String, tabs: usize) -> String {
-    match tree {
-        Some(x) => format!("{0}{1}", tab_str, x.get_tree_string(tabs)),
-        None => "~END~".to_string(),
-    }
-}
-
 impl Tree {
+    fn rotate_left(self) -> Tree {
+        match self.right {
+            None => self,
+            Some(mut y) => {
+                Self {
+                    token: y.token,
+                    left: Some(Box::new(Self {
+                        token: self.token,
+                        left: self.left,
+                        right: y.left.take(),
+                    })),
+                    right: y.right.take(),
+                }
+            }
+        }
+    }
+
+    fn get_subtree_string(tree: &TreeNode, tab_str: &String, tabs: usize) -> String {
+        match tree {
+            Some(x) => format!("{0}{1}", tab_str, x.get_tree_string(tabs)),
+            None => "~END~".to_string(),
+        }
+    }
+
     fn get_tree_string(&self, tabs: usize) -> String {
         let mut tab_str = "".to_string();
         for _ in (0..tabs).step_by(1) {
             tab_str.push_str("  ");
         }
-        let left = get_subtree_string(&self.left, &tab_str, tabs + 2);
-        let right = get_subtree_string(&self.right, &tab_str, tabs + 2);
+        let left = Tree::get_subtree_string(&self.left, &tab_str, tabs + 2);
+        let right = Tree::get_subtree_string(&self.right, &tab_str, tabs + 2);
 
         format!("\n{3}{0}: \n  {3}left: {1}\n  {3}right: {2}",
                 self.token.value,
@@ -149,7 +166,7 @@ impl Tree {
                 right,
                 tab_str)
     }
- }
+}
 
 impl ToString for Tree {
     fn to_string(&self) -> String {
@@ -166,12 +183,21 @@ struct Parser {
 }
 
 impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+    fn new(tokens: Vec<Token>) -> Self {
         let length = tokens.len();
         Self {
             tokens,
             length,
             index: 0,
+        }
+    }
+
+    fn get_operation_priority(token: &Token) -> usize {
+        let c = token.value.as_bytes()[0] as char;
+        match c {
+            '+' | '=' => 1,
+            '*' | '/' => 2,
+            _ => 0,
         }
     }
 
@@ -196,7 +222,9 @@ impl Parser {
             return self.next_expression(Some(Box::new(simple_node)));
         };
 
-        match token.typ {
+        let token_value = token.value.clone();
+
+        let result_tree = match token.typ {
             TokenType::Special => {
                 let c = token.value.as_bytes()[0] as char;
                 match c {
@@ -211,16 +239,29 @@ impl Parser {
             }
 
             TokenType::Operation => {
-                let next = self.next_expression(None);
-                let operation_node = Tree { token, left: prev, right: next };
-                Some(Box::new(operation_node))
-            }
+                let operation_subtree = self.next_expression(None);
+                let operation_tree = Tree { token, left: prev, right: operation_subtree, };
 
-            _ => {
-                println!("PARSING ERROR");
-                None
+                match &operation_tree.right {
+                    Some(x) => {
+                        let priority = Parser::get_operation_priority(&operation_tree.token);
+                        let subtree_priority = Parser::get_operation_priority(&x.token);
+                        if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
+                            Some(Box::new(operation_tree.rotate_left()))
+                        } else {
+                            Some(Box::new(operation_tree))
+                        }
+                    }
+                    None => None
+                }
             }
+            _ => None,
+        };
+
+        if result_tree.is_none() {
+            println!("PARSING ERROR: current: {}", token_value);
         }
+        result_tree
     }
 }
 
@@ -233,7 +274,7 @@ impl Iterator for Parser {
 }
 
 fn main() {
-    let lexer = Lexer::new("3 + 5.5 * 15 + 123;");
+    let lexer = Lexer::new("3 * 6 + 123 * 55;");
     let parser = Parser::new(lexer.collect());
     for tree in parser {
         println!("{}", tree.to_string());
