@@ -43,6 +43,9 @@ impl Lexer {
                 '0'..='9' | '.' => self.index += 1,
                 _ => break,
             }
+            if self.index >= self.length {
+                break;
+            }
             current_char = self.peek_char();
         }
 
