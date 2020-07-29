@@ -1,55 +1,45 @@
 use crate::token::Token;
 
-pub type TreeNode = Option<Box<Tree>>;
-
-pub struct Tree {
-    pub token: Token,
-    pub left: TreeNode,
-    pub right: TreeNode,
+#[derive(Clone)]
+pub enum Expression {
+    Literal(Token),
+    Operation(Box<Expression>, Token, Box<Expression>),
+    IfElse(Box<Expression>, Box<Expression>, Box<Expression>),
 }
 
-impl Tree {
-    pub fn rotate_left(self) -> Tree {
-        match self.right {
-            None => self,
-            Some(mut y) => {
-                Self {
-                    token: y.token,
-                    left: Some(Box::new(Self {
-                        token: self.token,
-                        left: self.left,
-                        right: y.left.take(),
-                    })),
-                    right: y.right.take(),
-                }
-            }
-        }
-    }
-
-    fn get_subtree_string(tree: &TreeNode, tab_str: &String, tabs: usize) -> String {
-        match tree {
-            Some(x) => format!("{0}{1}", tab_str, x.get_tree_string(tabs)),
-            None => "~END~".to_string(),
+impl Expression {
+    pub fn get_token(&self) -> Option<Token> {
+        match self {
+            Expression::Literal(token) => Some(token.clone()),
+            Expression::Operation(_left, token, _right) => Some(token.clone()),
+            _ => None,
         }
     }
 
     fn get_tree_string(&self, tabs: usize) -> String {
-        let mut tab_str = "".to_string();
-        for _ in (0..tabs).step_by(1) {
-            tab_str.push_str("  ");
-        }
-        let left = Tree::get_subtree_string(&self.left, &tab_str, tabs + 2);
-        let right = Tree::get_subtree_string(&self.right, &tab_str, tabs + 2);
+        match self {
+            Expression::Literal(token) => token.value.clone(),
+            Expression::Operation(left, token, right) => {
+                let mut tab_str = "".to_string();
+                for _ in (0..tabs).step_by(1) {
+                    tab_str.push_str("  ");
+                }
 
-        format!("\n{3}{0}: \n  {3}left: {1}\n  {3}right: {2}",
-                self.token.value,
-                left,
-                right,
-                tab_str)
+                let left = format!("{}", left.get_tree_string(tabs + 2));
+                let right = format!("{}", right.get_tree_string(tabs + 2));
+
+                format!("\n{3}{0}: \n  {3}left: {1}\n  {3}right: {2}",
+                        token.value,
+                        left,
+                        right,
+                        tab_str)
+            }
+            _ => { "".to_string() }
+        }
     }
 }
 
-impl ToString for Tree {
+impl ToString for Expression {
     fn to_string(&self) -> String {
         self.get_tree_string(0)
     }

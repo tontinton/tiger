@@ -1,7 +1,7 @@
 use std::any::Any;
 
 use crate::token::{Token, TokenType};
-use crate::ast::{TreeNode, Tree};
+use crate::ast::{Expression};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -37,70 +37,94 @@ impl Parser {
         Some(token)
     }
 
-    fn next_expression(&mut self, prev: TreeNode) -> TreeNode {
+    fn next_expression(&mut self, option_prev: Option<Box<Expression>>) -> Option<Box<Expression>> {
         let token = match self.eat_token() {
             Some(x) => x,
             None => return None,
         };
 
+        let token_value = token.value.clone();
+
         let type_id = token.typ.type_id();
-        if prev.is_none() && (type_id == TokenType::Number.type_id() || type_id == TokenType::Symbol.type_id()) {
-            let simple_node = Tree { token, left: None, right: None };
+        if option_prev.is_none() && (type_id == TokenType::Number.type_id() || type_id == TokenType::Symbol.type_id()) {
+            let simple_node = Expression::Literal(token);
             return self.next_expression(Some(Box::new(simple_node)));
         };
 
-        let token_value = token.value.clone();
+        let result_tree = match option_prev {
+            Some(prev) => {
+                match token.typ {
+                    TokenType::Special => {
+                        let c = token.value.as_bytes()[0] as char;
+                        match c {
+                            ';' => Some(prev),
+                            '=' => {
+                                if let Some(prev_token) = prev.get_token() {
+                                    if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
+                                        println!("Error: assignment: {} is not a valid symbol", prev_token.value);
+                                        None
+                                    } else {
+                                        if let Some(next) = self.next_expression(None) {
+                                            Some(Box::new(Expression::Operation(
+                                                prev,
+                                                Token { typ: TokenType::Assignment, value: token.value.clone() },
+                                                next,
+                                            )))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                } else {
+                                    println!("Error: assignment: could not get a token from prev");
+                                    None
+                                }
+                            }
+                            _ => {
+                                println!("Error: special: found an unknown character");
+                                None
+                            }
+                        }
+                    }
 
-        let result_tree = match token.typ {
-            TokenType::Special => {
-                let c = token.value.as_bytes()[0] as char;
-                match c {
-                    ';' => prev,
-                    '=' => {
-                        let prev_token = match &prev {
-                            Some(x) => x.token.clone(),
-                            None => Token { typ: TokenType::Unknown, value: "?".to_string() },
-                        };
+                    TokenType::Operation => {
+                        match self.next_expression(None) {
+                            Some(subtree) => {
+                                let priority = Parser::get_operation_priority(&token);
 
-                        if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
-                            println!("Error: assignment: {} is not a valid symbol", prev_token.value);
-                            None
-                        } else {
-                            Some(Box::new(Tree {
-                                token: Token { typ: TokenType::Assignment, value: token.value },
-                                left: prev,
-                                right: self.next_expression(None),
-                            }))
+                                if let Expression::Operation(left, subtree_token, right) = *subtree {
+                                    let subtree_priority = Parser::get_operation_priority(&subtree_token);
+                                    if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
+                                        // let operation_tree = Tree { token, left: prev, right: x };
+
+                                        // Create a rotated left operation tree
+                                        Some(Box::new(Expression::Operation(
+                                            Box::new(Expression::Operation(prev, token, left)),
+                                            subtree_token,
+                                            right)))
+                                    } else {
+                                        Some(Box::new(Expression::Operation(
+                                            prev,
+                                            token,
+                                            Box::new(Expression::Operation(left, subtree_token, right))))
+                                        )
+                                    }
+                                } else {
+                                    Some(Box::new(Expression::Operation(prev, token, subtree)))
+                                }
+                            }
+                            None => {
+                                println!("Error: operation: could not find an expression after {}", token_value);
+                                None
+                            }
                         }
                     }
                     _ => {
-                        println!("Error: special: found an unknown character");
+                        println!("Error: found an unknown token");
                         None
                     }
                 }
             }
-
-            TokenType::Operation => {
-                let operation_subtree = self.next_expression(None);
-                let operation_tree = Tree { token, left: prev, right: operation_subtree };
-
-                match &operation_tree.right {
-                    Some(x) => {
-                        let priority = Parser::get_operation_priority(&operation_tree.token);
-                        let subtree_priority = Parser::get_operation_priority(&x.token);
-                        if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
-                            Some(Box::new(operation_tree.rotate_left()))
-                        } else {
-                            Some(Box::new(operation_tree))
-                        }
-                    }
-                    None => Some(Box::new(operation_tree)),
-                }
-            }
-            _ => {
-                println!("Error: found an unknown token");
-                None
-            }
+            _ => None
         };
 
         if result_tree.is_none() {
@@ -111,7 +135,7 @@ impl Parser {
 }
 
 impl Iterator for Parser {
-    type Item = Box<Tree>;
+    type Item = Box<Expression>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_expression(None)

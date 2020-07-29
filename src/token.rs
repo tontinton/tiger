@@ -5,7 +5,6 @@ pub enum TokenType {
     Number,
     Symbol,
     Assignment,
-    Unknown,
 }
 
 #[derive(Clone)]
