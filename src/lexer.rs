@@ -85,7 +85,7 @@ impl Iterator for Lexer {
                 match c {
                     ' ' | '\n' => self.next(),
                     '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
-                    ';' | ':' | '=' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
+                    ';' | ':' | '=' | '{' | '}' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
                     '0'..='9' | '.' => {
                         self.index -= 1;
                         let value = self.eat_number();

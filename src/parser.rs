@@ -7,6 +7,7 @@ pub struct Parser {
     tokens: Vec<Token>,
     length: usize,
     index: usize,
+    stop_at: Option<char>,
 }
 
 impl Parser {
@@ -16,6 +17,7 @@ impl Parser {
             tokens,
             length,
             index: 0,
+            stop_at: None,
         }
     }
 
@@ -39,6 +41,12 @@ impl Parser {
 
     fn get_special_char_expression(&mut self, prev: Box<Expression>, token: Token) -> Option<Box<Expression>> {
         let c = token.value.as_bytes()[0] as char;
+        if let Some(stop_at) = self.stop_at {
+            if c == stop_at {
+                return Some(prev);
+            }
+        }
+
         match c {
             ';' => Some(prev),
             '=' => {
@@ -61,6 +69,17 @@ impl Parser {
                     println!("Error: assignment: could not get a token from prev");
                     None
                 }
+            }
+            '{' => {
+                // TODO: Fix very bad performance copy
+                let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
+                parser.stop_at = Some('}');
+                let mut expression_list: Vec<Box<Expression>> = vec![];
+                while let Some(expression) = parser.next_expression(None) {
+                    expression_list.push(expression);
+                }
+                self.index += parser.index;
+                Some(Box::new(Expression::Body(expression_list)))
             }
             _ => {
                 println!("Error: special: found an unknown character");
@@ -106,24 +125,30 @@ impl Parser {
             None => return None,
         };
 
-        let type_id = token.typ.type_id();
-        if option_prev.is_none() && (type_id == TokenType::Number.type_id() || type_id == TokenType::Symbol.type_id()) {
-            let simple_node = Expression::Literal(token);
-            return self.next_expression(Some(Box::new(simple_node)));
-        };
-
         match option_prev {
             Some(prev) => {
                 match token.typ {
                     TokenType::Special => self.get_special_char_expression(prev, token),
                     TokenType::Operation => self.get_operation_expression(prev, token),
                     _ => {
-                        println!("Error: found an unknown token");
+                        println!("Error: failed to parse token: {}", token.value);
                         None
                     }
                 }
             }
-            _ => None
+            None => {
+                match token.typ {
+                    TokenType::Special => None,
+                    TokenType::Number | TokenType::Symbol => {
+                        let simple_node = Expression::Literal(token);
+                        self.next_expression(Some(Box::new(simple_node)))
+                    }
+                    _ => {
+                        println!("Error: failed to parse token (prev is None): {}", token.value);
+                        None
+                    }
+                }
+            }
         }
     }
 }
