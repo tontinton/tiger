@@ -1,7 +1,7 @@
 use std::any::Any;
 
+use crate::ast::Expression;
 use crate::token::{Token, TokenType};
-use crate::ast::{Expression};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -112,9 +112,7 @@ impl Parser {
             return self.next_expression(Some(Box::new(simple_node)));
         };
 
-        let token_value = token.value.clone();
-
-        let result_tree = match option_prev {
+        match option_prev {
             Some(prev) => {
                 match token.typ {
                     TokenType::Special => self.get_special_char_expression(prev, token),
@@ -126,12 +124,7 @@ impl Parser {
                 }
             }
             _ => None
-        };
-
-        if result_tree.is_none() {
-            println!("Error: on token: {}", token_value);
         }
-        result_tree
     }
 }
 
