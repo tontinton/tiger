@@ -40,40 +40,56 @@ impl Parser {
         Some(token)
     }
 
-    fn get_special_char_expression(&mut self, prev: Box<Expression>, token: Token) -> Option<Box<Expression>> {
+    fn symbol_token_eaten(&mut self, value: &str) -> bool {
+        if self.index >= self.length {
+            return false;
+        }
+        let token = self.tokens[self.index].clone();
+        if token.typ.type_id() == TokenType::Symbol.type_id() && token.value == value {
+            self.index += 1;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn get_special_char_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         let c = token.value.as_bytes()[0] as char;
         if let Some(stop_at) = self.stop_at {
             if c == stop_at {
-                return Some(prev);
+                return option_prev;
             }
         }
 
         match c {
-            ';' => Some(prev),
+            ';' => option_prev,
             '=' => {
-                if let Some(prev_token) = prev.get_token() {
-                    if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
-                        println!("Error: assignment: {} is not a valid symbol", prev_token.value);
-                        None
-                    } else {
-                        if let Some(next) = self.next_expression(None) {
-                            Some(Box::new(Expression::Operation(
-                                prev,
-                                Token { typ: TokenType::Assignment, value: token.value },
-                                next,
-                            )))
-                        } else {
+                if let Some(prev) = option_prev {
+                    if let Some(prev_token) = prev.get_token() {
+                        if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
+                            println!("Error: assignment: {} is not a valid symbol", prev_token.value);
                             None
+                        } else {
+                            if let Some(next) = self.next_expression(None) {
+                                Some(Box::new(Expression::Operation(
+                                    prev,
+                                    Token { typ: TokenType::Assignment, value: token.value },
+                                    next,
+                                )))
+                            } else {
+                                None
+                            }
                         }
+                    } else {
+                        println!("Error: assignment: could not get a token from prev");
+                        None
                     }
                 } else {
-                    println!("Error: assignment: could not get a token from prev");
+                    println!("Error: assignment: no expression before `=`");
                     None
                 }
             }
-            '{' => {
-                Some(self.next_expressions('}'))
-            }
+            '{' => self.next_body_until_char('}'),
             _ => {
                 println!("Error: special: found an unknown character");
                 None
@@ -81,35 +97,40 @@ impl Parser {
         }
     }
 
-    fn get_operation_expression(&mut self, prev: Box<Expression>, token: Token) -> Option<Box<Expression>> {
+    fn get_operation_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         match self.next_expression(None) {
             Some(subtree) => {
                 let priority = Parser::get_operation_priority(&token);
 
-                if let Expression::Operation(left, subtree_token, right) = *subtree {
-                    let subtree_priority = Parser::get_operation_priority(&subtree_token);
-                    if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
-                        // Create a rotated left operation tree
-                        Some(Box::new(Expression::Operation(Box::new(Expression::Operation(prev, token, left)),
-                                                            subtree_token,
-                                                            right)))
+                if let Some(prev) = option_prev {
+                    if let Expression::Operation(left, subtree_token, right) = *subtree {
+                        let subtree_priority = Parser::get_operation_priority(&subtree_token);
+                        if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
+                            // Create a rotated left operation tree
+                            Some(Box::new(Expression::Operation(Box::new(Expression::Operation(prev, token, left)),
+                                                                subtree_token,
+                                                                right)))
+                        } else {
+                            Some(Box::new(Expression::Operation(prev,
+                                                                token,
+                                                                Box::new(Expression::Operation(left, subtree_token, right)))))
+                        }
                     } else {
-                        Some(Box::new(Expression::Operation(prev,
-                                                            token,
-                                                            Box::new(Expression::Operation(left, subtree_token, right)))))
+                        Some(Box::new(Expression::Operation(prev, token, subtree)))
                     }
                 } else {
-                    Some(Box::new(Expression::Operation(prev, token, subtree)))
+                    println!("Error: operation: no expression found before: {}", token.value);
+                    None
                 }
             }
             None => {
-                println!("Error: operation: could not find an expression after {}", token.value);
+                println!("Error: operation: no expression found after {}", token.value);
                 None
             }
         }
     }
 
-    fn next_expressions(&mut self, stop_at: char) -> Box<Expression> {
+    fn next_body_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
         // TODO: Fix very bad performance copy
         let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
         parser.stop_at = Some(stop_at);
@@ -118,7 +139,11 @@ impl Parser {
             expression_list.push(expression);
         }
         self.index += parser.index;
-        Box::new(Expression::Body(expression_list))
+        if expression_list.len() > 0 {
+            Some(Box::new(Expression::Body(expression_list)))
+        } else {
+            None
+        }
     }
 
     fn next_expression_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
@@ -137,46 +162,38 @@ impl Parser {
             None => return None,
         };
 
-        match option_prev {
-            Some(prev) => {
-                match token.typ {
-                    TokenType::Special => self.get_special_char_expression(prev, token),
-                    TokenType::Operation => self.get_operation_expression(prev, token),
-                    _ => {
-                        println!("Error: failed to parse token: {}", token.value);
-                        None
+        match token.typ {
+            TokenType::Special => self.get_special_char_expression(option_prev, token),
+            TokenType::Operation => self.get_operation_expression(option_prev, token),
+            TokenType::Symbol => {
+                if token.value == "if" {
+                    if let Some(condition) = self.next_expression_until_char('{') {
+                        if let Some(then) = self.next_body_until_char('}') {
+                            if self.symbol_token_eaten("else") {
+                                if let Some(else_expr) = self.next_expression(None) {
+                                    return Some(Box::new(Expression::IfElseThen(condition, then, else_expr)));
+                                }
+                            }
+                            return Some(Box::new(Expression::IfThen(condition, then)));
+                        } else {
+                            println!("Error: if: empty body");
+                        }
+                    } else {
+                        println!("Error: if: empty condition");
                     }
+                    None
+                } else {
+                    let simple_node = Expression::Literal(token);
+                    self.next_expression(Some(Box::new(simple_node)))
                 }
             }
-            None => {
-                match token.typ {
-                    TokenType::Special => None,
-                    TokenType::Symbol => {
-                        if token.value == "if" {
-                            if let Some(condition) = self.next_expression_until_char('{') {
-                                if let Some(then) = self.next_expression_until_char('}') {
-                                    return Some(Box::new(Expression::IfThen(condition, then)));
-                                } else {
-                                    println!("Error: if: empty body");
-                                }
-                            } else {
-                                println!("Error: if: empty condition");
-                            }
-                            None
-                        } else {
-                            let simple_node = Expression::Literal(token);
-                            self.next_expression(Some(Box::new(simple_node)))
-                        }
-                    }
-                    TokenType::Number => {
-                        let simple_node = Expression::Literal(token);
-                        self.next_expression(Some(Box::new(simple_node)))
-                    }
-                    _ => {
-                        println!("Error: failed to parse token (prev is None): {}", token.value);
-                        None
-                    }
-                }
+            TokenType::Number => {
+                let simple_node = Expression::Literal(token);
+                self.next_expression(Some(Box::new(simple_node)))
+            }
+            _ => {
+                println!("Error: failed to parse token: {}", token.value);
+                None
             }
         }
     }
