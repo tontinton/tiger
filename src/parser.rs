@@ -67,7 +67,7 @@ impl Parser {
                 if let Some(prev) = option_prev {
                     if let Some(prev_token) = prev.get_token() {
                         if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
-                            println!("Error: assignment: {} is not a valid symbol", prev_token.value);
+                            println!("Error: assignment: the expression `{}` is not a valid symbol", prev_token.value);
                             None
                         } else {
                             if let Some(next) = self.next_expression(None) {
@@ -77,6 +77,7 @@ impl Parser {
                                     next,
                                 )))
                             } else {
+                                println!("Error: assignment: no expression after `=`");
                                 None
                             }
                         }
