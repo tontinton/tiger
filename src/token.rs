@@ -4,6 +4,8 @@ pub enum TokenType {
     Special,
     Number,
     Symbol,
+    If,
+    Else,
     Assignment,
 }
 

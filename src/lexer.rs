@@ -117,7 +117,15 @@ impl Iterator for Lexer {
                     self.index -= 1;
                     let value = self.eat_string();
                     match value {
-                        Some(x) => Some(Token { typ: TokenType::Symbol, value: x }),
+                        Some(x) => {
+                            if x == "if" {
+                                Some(Token { typ: TokenType::If, value: "".to_string() })
+                            } else if x == "else" {
+                                Some(Token { typ: TokenType::Else, value: "".to_string() })
+                            } else {
+                                Some(Token { typ: TokenType::Symbol, value: x })
+                            }
+                        }
                         None => None,
                     }
                 }

@@ -40,19 +40,6 @@ impl Parser {
         Some(token)
     }
 
-    fn symbol_token_eaten(&mut self, value: &str) -> bool {
-        if self.index >= self.length {
-            return false;
-        }
-        let token = self.tokens[self.index].clone();
-        if token.typ.type_id() == TokenType::Symbol.type_id() && token.value == value {
-            self.index += 1;
-            true
-        } else {
-            false
-        }
-    }
-
     fn get_special_char_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         let c = token.value.as_bytes()[0] as char;
         if let Some(stop_at) = self.stop_at {
@@ -167,25 +154,42 @@ impl Parser {
             TokenType::Special => self.get_special_char_expression(option_prev, token),
             TokenType::Operation => self.get_operation_expression(option_prev, token),
             TokenType::Symbol => {
-                if token.value == "if" {
-                    if let Some(condition) = self.next_expression_until_char('{') {
-                        if let Some(then) = self.next_body_until_char('}') {
-                            if self.symbol_token_eaten("else") {
-                                if let Some(else_expr) = self.next_expression(None) {
-                                    return Some(Box::new(Expression::IfElseThen(condition, then, else_expr)));
-                                }
-                            }
-                            return Some(Box::new(Expression::IfThen(condition, then)));
-                        } else {
-                            println!("Error: if: empty body");
-                        }
+                let simple_node = Expression::Literal(token);
+                self.next_expression(Some(Box::new(simple_node)))
+            }
+            TokenType::If => {
+                if let Some(condition) = self.next_expression_until_char('{') {
+                    if let Some(then) = self.next_body_until_char('}') {
+                        return self.next_expression(Some(Box::new(Expression::IfThen(condition, then))));
                     } else {
-                        println!("Error: if: empty condition");
+                        println!("Error: if: empty body");
                     }
-                    None
                 } else {
-                    let simple_node = Expression::Literal(token);
-                    self.next_expression(Some(Box::new(simple_node)))
+                    println!("Error: if: empty condition");
+                }
+                None
+            }
+            TokenType::Else => {
+                if let Some(prev) = option_prev {
+                    match *prev {
+                        Expression::IfThen(condition, then) => {
+                            if let Some(else_expr) = self.next_expression(None) {
+                                Some(Box::new(Expression::IfElseThen(condition,
+                                                                     then,
+                                                                     else_expr)))
+                            } else {
+                                println!("Error: else: `else` block is empty");
+                                None
+                            }
+                        }
+                        _ => {
+                            println!("Error: else: must be after an `if` block");
+                            None
+                        }
+                    }
+                } else {
+                    println!("Error: else: cannot be the first keyword in an expression");
+                    None
                 }
             }
             TokenType::Number => {
