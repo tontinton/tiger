@@ -24,8 +24,9 @@ impl Parser {
     fn get_operation_priority(token: &Token) -> usize {
         let c = token.value.as_bytes()[0] as char;
         match c {
-            '+' | '=' => 1,
-            '*' | '/' => 2,
+            '>' | '<' | '=' => 1,
+            '+' | '-' => 2,
+            '*' | '/' => 3,
             _ => 0,
         }
     }
@@ -71,15 +72,7 @@ impl Parser {
                 }
             }
             '{' => {
-                // TODO: Fix very bad performance copy
-                let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
-                parser.stop_at = Some('}');
-                let mut expression_list: Vec<Box<Expression>> = vec![];
-                while let Some(expression) = parser.next_expression(None) {
-                    expression_list.push(expression);
-                }
-                self.index += parser.index;
-                Some(Box::new(Expression::Body(expression_list)))
+                Some(self.next_expressions('}'))
             }
             _ => {
                 println!("Error: special: found an unknown character");
@@ -97,16 +90,13 @@ impl Parser {
                     let subtree_priority = Parser::get_operation_priority(&subtree_token);
                     if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
                         // Create a rotated left operation tree
-                        Some(Box::new(Expression::Operation(
-                            Box::new(Expression::Operation(prev, token, left)),
-                            subtree_token,
-                            right)))
+                        Some(Box::new(Expression::Operation(Box::new(Expression::Operation(prev, token, left)),
+                                                            subtree_token,
+                                                            right)))
                     } else {
-                        Some(Box::new(Expression::Operation(
-                            prev,
-                            token,
-                            Box::new(Expression::Operation(left, subtree_token, right))))
-                        )
+                        Some(Box::new(Expression::Operation(prev,
+                                                            token,
+                                                            Box::new(Expression::Operation(left, subtree_token, right)))))
                     }
                 } else {
                     Some(Box::new(Expression::Operation(prev, token, subtree)))
@@ -117,6 +107,28 @@ impl Parser {
                 None
             }
         }
+    }
+
+    fn next_expressions(&mut self, stop_at: char) -> Box<Expression> {
+        // TODO: Fix very bad performance copy
+        let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
+        parser.stop_at = Some(stop_at);
+        let mut expression_list: Vec<Box<Expression>> = vec![];
+        while let Some(expression) = parser.next_expression(None) {
+            expression_list.push(expression);
+        }
+        self.index += parser.index;
+        Box::new(Expression::Body(expression_list))
+    }
+
+    fn next_expression_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
+        let prev_stop_at = self.stop_at;
+
+        self.stop_at = Some(stop_at);
+        let expression = self.next_expression(None);
+        self.stop_at = prev_stop_at;
+
+        expression
     }
 
     fn next_expression(&mut self, option_prev: Option<Box<Expression>>) -> Option<Box<Expression>> {
@@ -139,7 +151,24 @@ impl Parser {
             None => {
                 match token.typ {
                     TokenType::Special => None,
-                    TokenType::Number | TokenType::Symbol => {
+                    TokenType::Symbol => {
+                        if token.value == "if" {
+                            if let Some(condition) = self.next_expression_until_char('{') {
+                                if let Some(then) = self.next_expression_until_char('}') {
+                                    return Some(Box::new(Expression::IfThen(condition, then)));
+                                } else {
+                                    println!("Error: if: empty body");
+                                }
+                            } else {
+                                println!("Error: if: empty condition");
+                            }
+                            None
+                        } else {
+                            let simple_node = Expression::Literal(token);
+                            self.next_expression(Some(Box::new(simple_node)))
+                        }
+                    }
+                    TokenType::Number => {
                         let simple_node = Expression::Literal(token);
                         self.next_expression(Some(Box::new(simple_node)))
                     }

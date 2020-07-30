@@ -4,7 +4,8 @@ use crate::token::Token;
 pub enum Expression {
     Literal(Token),
     Operation(Box<Expression>, Token, Box<Expression>),
-    IfElse(Box<Expression>, Box<Expression>, Box<Expression>),
+    IfThen(Box<Expression>, Box<Expression>),
+    IfElseThen(Box<Expression>, Box<Expression>, Box<Expression>),
     Body(Vec<Box<Expression>>),
 }
 
@@ -29,13 +30,10 @@ impl Expression {
         match self {
             Expression::Literal(token) => token.value.clone(),
             Expression::Operation(left, token, right) => {
-                let left = format!("{}", left.get_tree_string(tabs + 2));
-                let right = format!("{}", right.get_tree_string(tabs + 2));
-
                 format!("\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",
                         token.value,
-                        left,
-                        right,
+                        left.get_tree_string(tabs + 2),
+                        right.get_tree_string(tabs + 2),
                         Expression::get_formatted_tabs(tabs))
             }
             Expression::Body(expressions) => {
@@ -45,6 +43,12 @@ impl Expression {
                     str.push_str(&*format!("{1}\n  {1}({1}{0}\n  {1}),", expression.get_tree_string(tabs + 2), formatted_tabs));
                 }
                 format!("\n{1}[{0}\n{1}]", str, formatted_tabs)
+            }
+            Expression::IfThen(condition, then) => {
+                format!("\n{2}if:\n  {2}condition: {0}\n  {2}then: {1}",
+                        condition.get_tree_string(tabs + 2),
+                        then.get_tree_string(tabs + 2),
+                        Expression::get_formatted_tabs(tabs))
             }
             _ => { "".to_string() }
         }

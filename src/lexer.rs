@@ -79,33 +79,52 @@ impl Iterator for Lexer {
         if self.index >= self.length {
             return None;
         }
-        let char_eaten = self.eat_char();
-        match char_eaten {
-            Some(c) => {
-                match c {
-                    ' ' | '\n' => self.next(),
-                    '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
-                    ';' | ':' | '=' | '{' | '}' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
-                    '0'..='9' | '.' => {
-                        self.index -= 1;
-                        let value = self.eat_number();
-                        match value {
-                            Some(x) => Some(Token { typ: TokenType::Number, value: x }),
-                            None => None,
+
+        if let Some(c) = self.eat_char() {
+            match c {
+                ' ' | '\n' => self.next(),
+                '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
+                '>' | '<' => {
+                    if let Some(next_c) = self.eat_char() {
+                        if next_c == '=' {
+                            return Some(Token { typ: TokenType::Operation, value: format!("{}{}", c, next_c) });
+                        } else {
+                            self.index -= 1;
                         }
                     }
-                    'A'..='Z' | 'a'..='z' => {
-                        self.index -= 1;
-                        let value = self.eat_string();
-                        match value {
-                            Some(x) => Some(Token { typ: TokenType::Symbol, value: x }),
-                            None => None,
-                        }
-                    }
-                    _ => None,
+                    Some(Token { typ: TokenType::Operation, value: c.to_string() })
                 }
+                '=' => {
+                    if let Some(next_c) = self.eat_char() {
+                        if next_c == '=' {
+                            return Some(Token { typ: TokenType::Operation, value: "==".to_string() });
+                        } else {
+                            self.index -= 1;
+                        }
+                    }
+                    Some(Token { typ: TokenType::Special, value: c.to_string() })
+                }
+                ';' | ':' | '{' | '}' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
+                '0'..='9' | '.' => {
+                    self.index -= 1;
+                    let value = self.eat_number();
+                    match value {
+                        Some(x) => Some(Token { typ: TokenType::Number, value: x }),
+                        None => None,
+                    }
+                }
+                'A'..='Z' | 'a'..='z' => {
+                    self.index -= 1;
+                    let value = self.eat_string();
+                    match value {
+                        Some(x) => Some(Token { typ: TokenType::Symbol, value: x }),
+                        None => None,
+                    }
+                }
+                _ => None,
             }
-            None => None,
+        } else {
+            None
         }
     }
 }
