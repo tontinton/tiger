@@ -160,7 +160,12 @@ impl Parser {
             TokenType::If => {
                 if let Some(condition) = self.next_expression_until_char('{') {
                     if let Some(then) = self.next_body_until_char('}') {
-                        return self.next_expression(Some(Box::new(Expression::IfThen(condition, then))));
+                        let if_expr = Some(Box::new(Expression::IfThen(condition, then)));
+                        return if let Some(next_expr) = self.next_expression(if_expr.clone()) {
+                            Some(next_expr)
+                        } else {
+                            if_expr
+                        }
                     } else {
                         println!("Error: if: empty body");
                     }

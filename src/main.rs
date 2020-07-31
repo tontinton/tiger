@@ -7,7 +7,7 @@ mod ast;
 mod parser;
 
 fn main() {
-    let lexer = Lexer::new("asd = 3 + 123 * 55; if asd * 5 >= 10 + 2 { asd = asd * 2; } else { asd = asd + 1; }");
+    let lexer = Lexer::new("asd = 3 + 123 * 55; if asd * 5 >= 10 + 2 { asd = asd * 2; } else if asd * 2 > 3 { asd = asd + 1; }");
     let parser = Parser::new(lexer.collect());
     for tree in parser {
         println!("{}", tree.to_string());
