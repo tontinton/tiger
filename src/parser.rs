@@ -1,23 +1,29 @@
 use std::any::Any;
+use std::collections::HashMap;
 
 use crate::ast::Expression;
 use crate::token::{Token, TokenType};
+use crate::types::Type;
 
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     length: usize,
     index: usize,
-    stop_at: Option<char>,
+    stop_at: char,
+    types: &'a mut HashMap<&'a str, Type>,
+    variables: &'a mut HashMap<&'a str, Type>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(tokens: Vec<Token>, types: &'a mut HashMap<&'a str, Type>, variables: &'a mut HashMap<&'a str, Type>) -> Self {
         let length = tokens.len();
         Self {
             tokens,
             length,
             index: 0,
-            stop_at: None,
+            stop_at: ';',
+            types,
+            variables,
         }
     }
 
@@ -40,16 +46,13 @@ impl Parser {
         Some(token)
     }
 
-    fn get_special_char_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
+    fn get_special_char_expression(&'a mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         let c = token.value.as_bytes()[0] as char;
-        if let Some(stop_at) = self.stop_at {
-            if c == stop_at {
-                return option_prev;
-            }
+        if c == self.stop_at {
+            return option_prev;
         }
 
         match c {
-            ';' => option_prev,
             '=' => {
                 if let Some(prev) = option_prev {
                     if let Some(prev_token) = prev.get_token() {
@@ -85,7 +88,7 @@ impl Parser {
         }
     }
 
-    fn get_operation_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
+    fn get_operation_expression(&'a mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         match self.next_expression(None) {
             Some(subtree) => {
                 let priority = Parser::get_operation_priority(&token);
@@ -118,14 +121,11 @@ impl Parser {
         }
     }
 
-    fn next_body_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
+    fn next_body_until_char(&'a mut self, stop_at: char) -> Option<Box<Expression>> {
         // TODO: Fix very bad performance copy
-        let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
-        parser.stop_at = Some(stop_at);
-        let mut expression_list: Vec<Box<Expression>> = vec![];
-        while let Some(expression) = parser.next_expression(None) {
-            expression_list.push(expression);
-        }
+        let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]), self.types, self.variables);
+        parser.stop_at = stop_at;
+        let expression_list = parser.collect();
         self.index += parser.index;
         if expression_list.len() > 0 {
             Some(Box::new(Expression::Body(expression_list)))
@@ -134,17 +134,17 @@ impl Parser {
         }
     }
 
-    fn next_expression_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
+    fn next_expression_until_char(&'a mut self, stop_at: char) -> Option<Box<Expression>> {
         let prev_stop_at = self.stop_at;
 
-        self.stop_at = Some(stop_at);
+        self.stop_at = stop_at;
         let expression = self.next_expression(None);
         self.stop_at = prev_stop_at;
 
         expression
     }
 
-    fn next_expression(&mut self, option_prev: Option<Box<Expression>>) -> Option<Box<Expression>> {
+    fn next_expression(&'a mut self, option_prev: Option<Box<Expression>>) -> Option<Box<Expression>> {
         let token = match self.eat_token() {
             Some(x) => x,
             None => return None,
@@ -154,7 +154,29 @@ impl Parser {
             TokenType::Special => self.get_special_char_expression(option_prev, token),
             TokenType::Operation => self.get_operation_expression(option_prev, token),
             TokenType::Symbol => {
-                let simple_node = Expression::Literal(token);
+                if let Some(variable_type) = self.variables.get(token.value.as_str()) {
+                    return self.next_expression(Some(Box::new(Expression::Literal((*variable_type).clone(), token))));
+                }
+                if let Some(prev) = option_prev {
+                    if TokenType::Colon.type_id() == prev.type_id() {
+                        // TODO: check that this came after `let [name]`
+                        if let Some(variable_type) = self.types.get(token.value.as_str()) {
+                            return self.next_expression(Some(Box::new(Expression::Literal((*variable_type).clone(), token))));
+                        } else {
+                            println!("Error: the type {} doesn't exist or wasn't declared yet", token.value);
+                            None
+                        }
+                    } else {
+                        println!("Error: unsupported");
+                        None
+                    }
+                } else {
+                    println!("Error: a symbol must not be the first word in an expression");
+                    None
+                }
+            }
+            TokenType::Number => {
+                let simple_node = Expression::Literal(Type::Number(4, true), token);
                 self.next_expression(Some(Box::new(simple_node)))
             }
             TokenType::If => {
@@ -165,7 +187,7 @@ impl Parser {
                             Some(next_expr)
                         } else {
                             if_expr
-                        }
+                        };
                     } else {
                         println!("Error: if: empty body");
                     }
@@ -197,9 +219,33 @@ impl Parser {
                     None
                 }
             }
-            TokenType::Number => {
-                let simple_node = Expression::Literal(token);
-                self.next_expression(Some(Box::new(simple_node)))
+            TokenType::Colon => {
+                if let Some(prev) = option_prev {
+                    match *prev {
+                        Expression::Literal(_type, _name) => {
+                            self.next_expression(None)
+                        }
+                        _ => {
+                            println!("Error: `:` must come after a name to a variable, `let [name] : [type]`");
+                            None
+                        }
+                    }
+                } else {
+                    println!("Error: `:` cannot be the beginning of an expression");
+                    None
+                }
+            }
+            TokenType::Let => {
+                if option_prev.is_some() {
+                    println!("Error: `let` must at the beginning of the expression, `let [name] : [type]`");
+                    return None;
+                }
+                if let Some(expr) = self.next_expression(None) {
+                    Some(expr)
+                } else {
+                    println!("Error: expression ended prematurely, `let [name] : [type]`");
+                    None
+                }
             }
             _ => {
                 println!("Error: failed to parse token: {}", token.value);
@@ -207,12 +253,12 @@ impl Parser {
             }
         }
     }
-}
 
-impl Iterator for Parser {
-    type Item = Box<Expression>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_expression(None)
+    pub fn collect(&'a mut self) -> Vec<Box<Expression>> {
+        let mut expression_list: Vec<Box<Expression>> = vec![];
+        while let Some(expr) = self.next_expression(None) {
+            expression_list.push(expr);
+        }
+        expression_list
     }
 }

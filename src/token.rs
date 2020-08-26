@@ -6,6 +6,8 @@ pub enum TokenType {
     Symbol,
     If,
     Else,
+    Let,
+    Colon,
     Assignment,
 }
 

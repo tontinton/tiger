@@ -1,8 +1,9 @@
 use crate::token::Token;
+use crate::types::Type;
 
 #[derive(Clone)]
 pub enum Expression {
-    Literal(Token),
+    Literal(Type, Token),
     Operation(Box<Expression>, Token, Box<Expression>),
     IfThen(Box<Expression>, Box<Expression>),
     IfElseThen(Box<Expression>, Box<Expression>, Box<Expression>),
@@ -12,7 +13,7 @@ pub enum Expression {
 impl Expression {
     pub fn get_token(&self) -> Option<Token> {
         match self {
-            Expression::Literal(token) => Some(token.clone()),
+            Expression::Literal(_type, token) => Some(token.clone()),
             Expression::Operation(_left, token, _right) => Some(token.clone()),
             _ => None,
         }
@@ -28,7 +29,7 @@ impl Expression {
 
     fn get_tree_string(&self, tabs: usize) -> String {
         match self {
-            Expression::Literal(token) => token.value.clone(),
+            Expression::Literal(_type, token) => token.value.clone(),
             Expression::Operation(left, token, right) => {
                 format!("\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",
                         token.value,
