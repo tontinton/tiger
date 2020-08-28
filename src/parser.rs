@@ -6,14 +6,14 @@ use crate::lexer::Lexer;
 
 pub struct Parser<'a> {
     lexer: &'a mut Lexer,
-    stop_at: Option<char>,
+    stop_at: char,
 }
 
 impl<'a> Parser<'a> {
     pub fn new(lexer: &'a mut Lexer) -> Self {
         Self {
             lexer,
-            stop_at: None,
+            stop_at: ';',
         }
     }
 
@@ -33,14 +33,12 @@ impl<'a> Parser<'a> {
 
     fn get_special_char_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
         let c = token.value.as_bytes()[0] as char;
-        if let Some(stop_at) = self.stop_at {
-            if c == stop_at {
-                return option_prev;
-            }
+        if c == self.stop_at {
+            return option_prev;
         }
 
         match c {
-            ';' => option_prev,
+            ';' => option_prev, // a semicolon should always stop from reading more expressions
             '=' => {
                 if let Some(prev) = option_prev {
                     if let Some(prev_token) = prev.get_token() {
@@ -111,7 +109,7 @@ impl<'a> Parser<'a> {
 
     fn next_body_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
         let mut parser = Parser::new(&mut self.lexer);
-        parser.stop_at = Some(stop_at);
+        parser.stop_at = stop_at;
         let mut expression_list: Vec<Box<Expression>> = vec![];
         while let Some(expression) = parser.next_expression(None) {
             expression_list.push(expression);
@@ -126,7 +124,7 @@ impl<'a> Parser<'a> {
     fn next_expression_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
         let prev_stop_at = self.stop_at;
 
-        self.stop_at = Some(stop_at);
+        self.stop_at = stop_at;
         let expression = self.next_expression(None);
         self.stop_at = prev_stop_at;
 
