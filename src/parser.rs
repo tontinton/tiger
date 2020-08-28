@@ -2,21 +2,17 @@ use std::any::Any;
 
 use crate::ast::Expression;
 use crate::token::{Token, TokenType};
+use crate::lexer::Lexer;
 
-pub struct Parser {
-    tokens: Vec<Token>,
-    length: usize,
-    index: usize,
+pub struct Parser<'a> {
+    lexer: &'a mut Lexer,
     stop_at: Option<char>,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
-        let length = tokens.len();
+impl<'a> Parser<'a> {
+    pub fn new(lexer: &'a mut Lexer) -> Self {
         Self {
-            tokens,
-            length,
-            index: 0,
+            lexer,
             stop_at: None,
         }
     }
@@ -32,12 +28,7 @@ impl Parser {
     }
 
     fn eat_token(&mut self) -> Option<Token> {
-        if self.index >= self.length {
-            return None;
-        }
-        let token = self.tokens[self.index].clone();
-        self.index += 1;
-        Some(token)
+        self.lexer.next()
     }
 
     fn get_special_char_expression(&mut self, option_prev: Option<Box<Expression>>, token: Token) -> Option<Box<Expression>> {
@@ -119,14 +110,12 @@ impl Parser {
     }
 
     fn next_body_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
-        // TODO: Fix very bad performance copy
-        let mut parser = Parser::new(Vec::from(&self.tokens[self.index..]));
+        let mut parser = Parser::new(&mut self.lexer);
         parser.stop_at = Some(stop_at);
         let mut expression_list: Vec<Box<Expression>> = vec![];
         while let Some(expression) = parser.next_expression(None) {
             expression_list.push(expression);
         }
-        self.index += parser.index;
         if expression_list.len() > 0 {
             Some(Box::new(Expression::Body(expression_list)))
         } else {
@@ -165,7 +154,7 @@ impl Parser {
                             Some(next_expr)
                         } else {
                             if_expr
-                        }
+                        };
                     } else {
                         println!("Error: if: empty body");
                     }
@@ -209,7 +198,7 @@ impl Parser {
     }
 }
 
-impl Iterator for Parser {
+impl<'a> Iterator for Parser<'a> {
     type Item = Box<Expression>;
 
     fn next(&mut self) -> Option<Self::Item> {
