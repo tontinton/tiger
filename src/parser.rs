@@ -41,25 +41,29 @@ impl<'a> Parser<'a> {
             ';' => option_prev, // a semicolon should always stop from reading more expressions
             '=' => {
                 if let Some(prev) = option_prev {
-                    if let Some(prev_token) = prev.get_token() {
-                        if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
-                            println!("Error: assignment: the expression `{}` is not a valid symbol", prev_token.value);
-                            None
-                        } else {
-                            if let Some(next) = self.next_expression(None) {
-                                Some(Box::new(Expression::Operation(
-                                    prev,
-                                    Token { typ: TokenType::Assignment, value: token.value },
-                                    next,
-                                )))
-                            } else {
-                                println!("Error: assignment: no expression after `=`");
-                                None
-                            }
-                        }
-                    } else {
-                        println!("Error: assignment: could not get a token from prev");
+                    let prev_token = match &(*prev) {
+                        Expression::Literal(token) => token,
+                        Expression::Operation(_left, token, _right) => token,
+                        _ => {
+                            println!("Error: assignment: the previous expression must either be a literal or an operation");
+                            return None;
+                        },
+                    };
+
+                    if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
+                        println!("Error: assignment: the expression `{}` is not a valid symbol", prev_token.value);
                         None
+                    } else {
+                        if let Some(next) = self.next_expression(None) {
+                            Some(Box::new(Expression::Operation(
+                                prev,
+                                Token { typ: TokenType::Assignment, value: token.value },
+                                next,
+                            )))
+                        } else {
+                            println!("Error: assignment: no expression after `=`");
+                            None
+                        }
                     }
                 } else {
                     println!("Error: assignment: no expression before `=`");

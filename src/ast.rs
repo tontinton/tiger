@@ -10,14 +10,6 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn get_token(&self) -> Option<Token> {
-        match self {
-            Expression::Literal(token) => Some(token.clone()),
-            Expression::Operation(_left, token, _right) => Some(token.clone()),
-            _ => None,
-        }
-    }
-
     fn get_formatted_tabs(tabs: usize) -> String {
         let mut tab_str = "".to_string();
         for _ in (0..tabs).step_by(1) {
