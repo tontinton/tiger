@@ -110,15 +110,7 @@ impl<'a> Parser<'a> {
     fn next_body_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
         let mut parser = Parser::new(&mut self.lexer);
         parser.stop_at = stop_at;
-        let mut expression_list: Vec<Box<Expression>> = vec![];
-        while let Some(expression) = parser.next_expression(None) {
-            expression_list.push(expression);
-        }
-        if expression_list.len() > 0 {
-            Some(Box::new(Expression::Body(expression_list)))
-        } else {
-            None
-        }
+        parser.parse()
     }
 
     fn next_expression_until_char(&mut self, stop_at: char) -> Option<Box<Expression>> {
@@ -194,12 +186,16 @@ impl<'a> Parser<'a> {
             }
         }
     }
-}
 
-impl<'a> Iterator for Parser<'a> {
-    type Item = Box<Expression>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_expression(None)
+    pub fn parse(mut self) -> Option<Box<Expression>>{
+        let mut expression_list: Vec<Box<Expression>> = vec![];
+        while let Some(expression) = self.next_expression(None) {
+            expression_list.push(expression);
+        }
+        if expression_list.len() > 0 {
+            Some(Box::new(Expression::Body(expression_list)))
+        } else {
+            None
+        }
     }
 }

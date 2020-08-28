@@ -9,7 +9,7 @@ mod parser;
 fn main() {
     let mut lexer = Lexer::new("asd = 3 + 123 * 55; if asd * 5 >= 10 + 2 { asd = asd * 2; } else if asd * 2 > 3 { asd = asd + 1; }");
     let parser = Parser::new(&mut lexer);
-    for tree in parser {
-        println!("{}", tree.to_string());
+    if let Some(expression) = parser.parse() {
+        println!("{}", expression.to_string());
     }
 }
