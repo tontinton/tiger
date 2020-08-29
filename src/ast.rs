@@ -1,15 +1,15 @@
 use crate::token::Token;
 
 #[derive(Clone)]
-pub enum Expression {
+pub enum Expression<'a> {
     Literal(Token),
-    Operation(Box<Expression>, Token, Box<Expression>),
-    IfThen(Box<Expression>, Box<Expression>),
-    IfElseThen(Box<Expression>, Box<Expression>, Box<Expression>),
-    Body(Vec<Box<Expression>>),
+    Operation(&'a Expression<'a>, Token, &'a Expression<'a>),
+    IfThen(&'a Expression<'a>, &'a Expression<'a>),
+    IfElseThen(&'a Expression<'a>, &'a Expression<'a>, &'a Expression<'a>),
+    Body(Vec<&'a Expression<'a>>),
 }
 
-impl Expression {
+impl Expression<'_> {
     fn get_formatted_tabs(tabs: usize) -> String {
         let mut tab_str = "".to_string();
         for _ in (0..tabs).step_by(1) {
@@ -53,7 +53,7 @@ impl Expression {
     }
 }
 
-impl ToString for Expression {
+impl ToString for Expression<'_> {
     fn to_string(&self) -> String {
         self.get_tree_string(0)
     }
