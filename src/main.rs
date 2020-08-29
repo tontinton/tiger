@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use typed_arena::Arena;
 
 use crate::lexer::Lexer;
@@ -8,11 +10,17 @@ mod lexer;
 mod ast;
 mod parser;
 
+const FIRST_FILE_TO_PARSE: &str = "test.tg";
+
 fn main() {
     let arena = Arena::new();
-    let mut lexer = Lexer::new("asd = 3 + 123 * 55; if asd * 5 >= 10 + 2 { asd = asd * 2; } else if asd * 2 > 3 { asd = asd + 1; }");
-    let parser = Parser::new(&mut lexer, &arena);
-    if let Some(expression) = parser.parse() {
-        println!("{}", expression.to_string());
+    match Lexer::from_file(Path::new(FIRST_FILE_TO_PARSE)) {
+        Ok(mut lexer) => {
+            let parser = Parser::new(&mut lexer, &arena);
+            if let Some(expression) = parser.parse() {
+                println!("{}", expression.to_string());
+            }
+        }
+        Err(e) => println!("Failed to read file: {}: {}", FIRST_FILE_TO_PARSE, e)
     }
 }

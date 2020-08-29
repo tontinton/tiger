@@ -1,4 +1,7 @@
+use std::{fs, io};
+
 use crate::token::{Token, TokenType};
+use std::path::Path;
 
 pub struct Lexer {
     text: String,
@@ -7,13 +10,18 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(text: &str) -> Self {
+    pub fn from_str(text: &str) -> Self {
         let length = text.len();
         Self {
             text: text.to_string(),
             length,
             index: 0,
         }
+    }
+
+    pub fn from_file(path: &Path) -> io::Result<Self> {
+        let text = fs::read_to_string(path)?;
+        Ok(Self::from_str(&*text))
     }
 
     fn peek_char(&mut self) -> char {
@@ -82,7 +90,7 @@ impl Iterator for Lexer {
 
         if let Some(c) = self.eat_char() {
             match c {
-                ' ' | '\n' => self.next(),
+                ' ' | '\r' | '\n' | '\t' => self.next(),
                 '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
                 '>' | '<' => {
                     if let Some(next_c) = self.eat_char() {
