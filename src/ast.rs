@@ -4,6 +4,7 @@ type Expr<'a> = &'a Expression<'a>;
 
 // TODO: change all enum values to have names
 pub enum Expression<'a> {
+    Empty,
     Literal(Token),
     Operation(Expr<'a>, Token, Expr<'a>),
     IfThen(Expr<'a>, Expr<'a>),
@@ -23,6 +24,7 @@ impl Expression<'_> {
 
     fn get_tree_string(&self, tabs: usize) -> String {
         match self {
+            Expression::Empty => "empty".to_string(),
             Expression::Literal(token) => token.value.clone(),
             Expression::Operation(left, token, right) => {
                 format!("\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",

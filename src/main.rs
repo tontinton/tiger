@@ -33,8 +33,11 @@ fn main() {
         Ok(mut lexer) => {
             let mut scope = ParserScope::new();
             let parser = Parser::new(&mut lexer, &mut scope, &arena);
-            if let Some(expression) = parser.parse() {
-                println!("{}", expression.to_string());
+            match parser.parse() {
+                Ok(expression) => {
+                    println!("{}", expression.to_string());
+                }
+                Err(e) => println!("Parse error: {}", e)
             }
         }
         Err(e) => println!("Failed to read file: {}: {}", input_file, e)
