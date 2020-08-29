@@ -9,6 +9,7 @@ pub enum TokenType {
     Assignment,
     Colon,
     Let,
+    Walrus,
 }
 
 #[derive(Clone)]

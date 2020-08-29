@@ -1,6 +1,7 @@
-let asd : u32 = 3 + 123 * 55;
-if asd * 5 >= 10 + 2 {
-    asd = asd * 2;
-} else if asd * 2 > 3 {
-    asd = asd + 1;
+let a : u32 = 3 + 123 * 55;
+let b := 100;
+if a * 5 >= 10 + 2 {
+    a = b * 2;
+} else if a * 2 > 3 {
+    a = b + 1;
 }

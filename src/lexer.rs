@@ -112,7 +112,16 @@ impl Iterator for Lexer {
                     }
                     Some(Token { typ: TokenType::Special, value: c.to_string() })
                 }
-                ':' => Some(Token { typ: TokenType::Colon, value: c.to_string() }),
+                ':' => {
+                    if let Some(next_c) = self.eat_char() {
+                        if next_c == '=' {
+                            return Some(Token { typ: TokenType::Walrus, value: "".to_string() });
+                        } else {
+                            self.index -= 1;
+                        }
+                    }
+                    Some(Token { typ: TokenType::Colon, value: c.to_string() })
+                },
                 ';' | '{' | '}' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
                 '0'..='9' | '.' => {
                     self.index -= 1;

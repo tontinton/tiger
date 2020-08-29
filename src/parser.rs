@@ -122,7 +122,20 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         }
     }
 
-    fn get_variable_assignment_expression(&mut self, option_prev: ExprOption<'c>) -> ExprOption<'c> {
+    fn build_variable_declaration_expression(&mut self, name: Token, typ: Token) -> ExprOption<'c> {
+        let variable = self.arena.alloc(Expression::Literal(name.clone()));
+        let typ = self.arena.alloc(Expression::Literal(typ));
+        if let Some(value) = self.next_expression(Some(variable)) {
+            // TODO: check that value is actually an assignment expression
+            self.scope.variables.push(name.value);
+            Some(self.arena.alloc(Expression::VariableDeclaration(variable, typ, value)))
+        } else {
+            println!("Error: `let [name] : [type]`, no assignment expression found for the variable");
+            None
+        }
+    }
+
+    fn get_variable_declaration_expression(&mut self, option_prev: ExprOption<'c>) -> ExprOption<'c> {
         if option_prev.is_some() {
             println!("Error: `let [name] : [type]`, `let` must at the beginning of the expression");
             return None;
@@ -136,16 +149,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                                 if let Some(type_token) = self.eat_token() {
                                     match type_token.typ {
                                         TokenType::Symbol => {
-                                            let variable = self.arena.alloc(Expression::Literal(name_token.clone()));
-                                            let typ = self.arena.alloc(Expression::Literal(type_token));
-                                            if let Some(value) = self.next_expression(Some(variable)) {
-                                                // TODO: check that value is actually an assignment expression
-                                                self.scope.variables.push(name_token.value);
-                                                Some(self.arena.alloc(Expression::VariableDeclaration(variable, typ, value)))
-                                            } else {
-                                                println!("Error: `let [name] : [type]`, no assignment expression found for the variable");
-                                                None
-                                            }
+                                            self.build_variable_declaration_expression(name_token, type_token)
                                         }
                                         _ => {
                                             println!("Error: `let [name] : [type]`, [type] given after `:` is not a valid symbol");
@@ -157,8 +161,12 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                                     None
                                 }
                             }
+                            TokenType::Walrus => {
+                                self.build_variable_declaration_expression(name_token,
+                                                                           Token { typ: TokenType::Symbol, value: "auto".to_string() })
+                            }
                             _ => {
-                                println!("Error: `let [name] : [type]`, `:` did not come after [name]");
+                                println!("Error: `let [name] : [type]`, `:` or `:=` did not come after [name]");
                                 None
                             }
                         }
@@ -255,7 +263,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                 self.next_expression(Some(self.arena.alloc(Expression::Literal(token))))
             }
             TokenType::Let => {
-                self.get_variable_assignment_expression(option_prev)
+                self.get_variable_declaration_expression(option_prev)
             }
             _ => {
                 println!("Error: failed to parse token: {}", token.value);
