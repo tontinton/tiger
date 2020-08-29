@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use clap::{App, Arg, crate_authors, crate_name, crate_version};
 use typed_arena::Arena;
 
 use crate::lexer::Lexer;
@@ -10,17 +11,29 @@ mod lexer;
 mod ast;
 mod parser;
 
-const FIRST_FILE_TO_PARSE: &str = "test.tg";
 
 fn main() {
+    let matches = App::new(crate_name!())
+        .version(crate_version!())
+        .about("The tiger language compiler")
+        .author(crate_authors!())
+        .arg(
+            Arg::with_name("input")
+                .about("the input file to use")
+                .index(1)
+                .required(true),
+        )
+        .get_matches();
+
+    let input_file = matches.value_of("input").unwrap();
     let arena = Arena::new();
-    match Lexer::from_file(Path::new(FIRST_FILE_TO_PARSE)) {
+    match Lexer::from_file(Path::new(input_file)) {
         Ok(mut lexer) => {
             let parser = Parser::new(&mut lexer, &arena);
             if let Some(expression) = parser.parse() {
                 println!("{}", expression.to_string());
             }
         }
-        Err(e) => println!("Failed to read file: {}: {}", FIRST_FILE_TO_PARSE, e)
+        Err(e) => println!("Failed to read file: {}: {}", input_file, e)
     }
 }
