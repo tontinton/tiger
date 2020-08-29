@@ -1,12 +1,15 @@
 use crate::token::Token;
 
-#[derive(Clone)]
+type Expr<'a> = &'a Expression<'a>;
+
+// TODO: change all enum values to have names
 pub enum Expression<'a> {
     Literal(Token),
-    Operation(&'a Expression<'a>, Token, &'a Expression<'a>),
-    IfThen(&'a Expression<'a>, &'a Expression<'a>),
-    IfElseThen(&'a Expression<'a>, &'a Expression<'a>, &'a Expression<'a>),
-    Body(Vec<&'a Expression<'a>>),
+    Operation(Expr<'a>, Token, Expr<'a>),
+    IfThen(Expr<'a>, Expr<'a>),
+    IfElseThen(Expr<'a>, Expr<'a>, Expr<'a>),
+    Body(Vec<Expr<'a>>),
+    VariableDeclaration(Expr<'a> /* variable */, Expr<'a> /* type */, Expr<'a> /* value */),
 }
 
 impl Expression<'_> {
@@ -47,6 +50,13 @@ impl Expression<'_> {
                         condition.get_tree_string(tabs + 2),
                         then.get_tree_string(tabs + 2),
                         else_expr.get_tree_string(tabs + 2),
+                        Expression::get_formatted_tabs(tabs))
+            }
+            Expression::VariableDeclaration(variable, typ, value) => {
+                format!("\n{3}declaration:\n  {3}name: {0}\n  {3}type: {1}\n  {3}value: {2}",
+                        variable.get_tree_string(tabs + 2),
+                        typ.get_tree_string(tabs + 2),
+                        value.get_tree_string(tabs + 2),
                         Expression::get_formatted_tabs(tabs))
             }
         }

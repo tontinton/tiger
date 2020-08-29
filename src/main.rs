@@ -5,10 +5,12 @@ use typed_arena::Arena;
 
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::parser_scope::ParserScope;
 
 mod token;
 mod lexer;
 mod ast;
+mod parser_scope;
 mod parser;
 
 
@@ -29,7 +31,8 @@ fn main() {
     let arena = Arena::new();
     match Lexer::from_file(Path::new(input_file)) {
         Ok(mut lexer) => {
-            let parser = Parser::new(&mut lexer, &arena);
+            let mut scope = ParserScope::new();
+            let parser = Parser::new(&mut lexer, &mut scope, &arena);
             if let Some(expression) = parser.parse() {
                 println!("{}", expression.to_string());
             }

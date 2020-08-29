@@ -1,4 +1,4 @@
-asd = 3 + 123 * 55;
+let asd : u32 = 3 + 123 * 55;
 if asd * 5 >= 10 + 2 {
     asd = asd * 2;
 } else if asd * 2 > 3 {

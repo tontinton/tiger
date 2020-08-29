@@ -7,6 +7,8 @@ pub enum TokenType {
     If,
     Else,
     Assignment,
+    Colon,
+    Let,
 }
 
 #[derive(Clone)]
