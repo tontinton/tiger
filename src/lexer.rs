@@ -7,21 +7,49 @@ pub struct Lexer {
     text: String,
     length: usize,
     index: usize,
+    prev_new_line_index: usize,
+    next_new_line_index: Option<usize>,
+    current_line_index: usize,
 }
 
 impl Lexer {
     pub fn from_str(text: &str) -> Self {
         let length = text.len();
-        Self {
+        let mut lexer = Self {
             text: text.to_string(),
             length,
             index: 0,
-        }
+            prev_new_line_index: 0,
+            next_new_line_index: Some(0),
+            current_line_index: 0,
+        };
+        lexer.update_current_line();
+        lexer
     }
 
     pub fn from_file(path: &Path) -> io::Result<Self> {
         let text = fs::read_to_string(path)?;
         Ok(Self::from_str(&*text))
+    }
+
+    pub fn get_current_line(&self) -> (usize, &str) {
+        if let Some(index) = self.next_new_line_index {
+            (self.current_line_index, &self.text[self.prev_new_line_index..index])
+        } else {
+            (self.current_line_index, &self.text[self.prev_new_line_index..])
+        }
+    }
+
+    fn update_current_line(&mut self) {
+        if let Some(index) = self.next_new_line_index {
+            self.prev_new_line_index = index;
+        }
+        if let Some(next_new_line_offset) = self.text[self.index..].find('\n') {
+            self.next_new_line_index = Some(self.index + next_new_line_offset + 1);
+        } else {
+            self.next_new_line_index = None;
+        }
+        self.current_line_index += 1;
     }
 
     fn peek_char(&mut self) -> char {
@@ -90,7 +118,11 @@ impl Iterator for Lexer {
 
         if let Some(c) = self.eat_char() {
             match c {
-                ' ' | '\r' | '\n' | '\t' => self.next(),
+                ' ' | '\r' | '\t' => self.next(),
+                '\n' => {
+                    self.update_current_line();
+                    self.next()
+                },
                 '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
                 '>' | '<' => {
                     if let Some(next_c) = self.eat_char() {

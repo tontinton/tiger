@@ -37,7 +37,7 @@ fn main() {
                 Ok(expression) => {
                     println!("{}", expression.to_string());
                 }
-                Err(e) => println!("Parse error: {}", e)
+                Err(e) => println!("{}", e)
             }
         }
         Err(e) => println!("Failed to read file: {}: {}", input_file, e)

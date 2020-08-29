@@ -253,7 +253,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                 self.get_variable_declaration_expression(prev)
             }
             _ => {
-                Err(format!("failed to parse token: {}", token.value))
+                Err(format!("unexpected token"))
             }
         }
     }
@@ -261,12 +261,26 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
     pub fn parse(mut self) -> ExprResult<'c> {
         let mut expression_list: Vec<&Expression> = vec![];
         loop {
-            let expression = self.next_expression(self.empty_expression)?;
-            if self.is_empty_expression(expression) {
-                break;
+            match self.next_expression(self.empty_expression) {
+                Ok(expression) => {
+                    if self.is_empty_expression(expression) {
+                        break;
+                    }
+                    expression_list.push(expression);
+                }
+                Err(e) => {
+                    // TODO: handle recursion of parsers better
+                    if e.contains("Parse error:") {
+                        return Err(e);
+                    }
+
+                    // TODO: handle the parsed line better
+                    // TODO: add the token parsed to error messages somehow
+                    let (index, line) = self.lexer.get_current_line();
+                    return Err(format!("Parse error: {}\n{}: {}", e, index, line));
+                }
             }
-            expression_list.push(expression);
-        }
+        };
         if expression_list.len() > 0 {
             Ok(self.arena.alloc(Expression::Body(expression_list)))
         } else {
