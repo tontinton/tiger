@@ -12,7 +12,7 @@ fn mul(x: u32, y: u32) -> u32 {
 
 fn main() -> void {
     let a : u32 = 3 + 123 * 55;
-    let b := 20;
+    let b := 20; // Walrus operator for auto type inference
     let c := fib(b);
     if mul(a, 5) >= b + 2 {
         return c * 2;

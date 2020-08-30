@@ -126,14 +126,32 @@ impl Iterator for Lexer {
             '-' => {
                 if let Some(next_c) = self.eat_char() {
                     if next_c == '>' {
-                        return Some(Token { typ: TokenType::SmallArrow, value: "->".to_string() });
+                        return Some(Token { typ: TokenType::SmallArrow, value: format!("{}{}", c, next_c) });
                     } else {
                         self.index -= 1;
                     }
                 }
                 Some(Token { typ: TokenType::Operation, value: c.to_string() })
             }
-            '+' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
+            '/' => {
+                if let Some(next_c) = self.eat_char() {
+                    if next_c == '/' {
+                        // This should probably be the parser's job to determine comments, but for now I am fine with this
+                        // PLus, this is a little more efficient to let the lexer just update the new line index
+                        return if let Some(index) = self.next_new_line_index {
+                            self.index = index;
+                            self.update_current_line();
+                            self.next()
+                        } else {
+                            None
+                        }
+                    } else {
+                        self.index -= 1;
+                    }
+                }
+                Some(Token { typ: TokenType::Operation, value: c.to_string() })
+            }
+            '+' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
             '>' | '<' => {
                 if let Some(next_c) = self.eat_char() {
                     if next_c == '=' {
@@ -147,7 +165,7 @@ impl Iterator for Lexer {
             '=' => {
                 if let Some(next_c) = self.eat_char() {
                     if next_c == '=' {
-                        return Some(Token { typ: TokenType::Operation, value: "==".to_string() });
+                        return Some(Token { typ: TokenType::Operation, value: format!("{}{}", c, next_c) });
                     } else {
                         self.index -= 1;
                     }
@@ -157,7 +175,7 @@ impl Iterator for Lexer {
             ':' => {
                 if let Some(next_c) = self.eat_char() {
                     if next_c == '=' {
-                        return Some(Token { typ: TokenType::Walrus, value: ":=".to_string() });
+                        return Some(Token { typ: TokenType::Walrus, value: format!("{}{}", c, next_c) });
                     } else {
                         self.index -= 1;
                     }
