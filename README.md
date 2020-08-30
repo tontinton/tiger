@@ -1,5 +1,7 @@
 # IN DEVELOPMENT
 
+![Rust](https://github.com/tontinton/tiger/workflows/Rust/badge.svg?branch=master)
+
 ## Introduction
 The tiger language is a language made for exploitations.
 
