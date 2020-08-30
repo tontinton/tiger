@@ -42,7 +42,7 @@ fn main() -> void {
 ```
 
 The result is:
-```
+```yaml
 [
   (
     declaration:
