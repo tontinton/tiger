@@ -98,7 +98,7 @@ impl Lexer {
         let mut current_char = self.peek_char();
         loop {
             match current_char {
-                'A'..='Z' | 'a'..='z' | '0'..='9' => self.index += 1,
+                'A'..='Z' | 'a'..='z' | '0'..='9' | '_' => self.index += 1,
                 _ => break,
             }
             current_char = self.peek_char();
@@ -116,75 +116,73 @@ impl Iterator for Lexer {
             return None;
         }
 
-        if let Some(c) = self.eat_char() {
-            match c {
-                ' ' | '\r' | '\t' => self.next(),
-                '\n' => {
-                    self.update_current_line();
-                    self.next()
-                },
-                '+' | '-' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
-                '>' | '<' => {
-                    if let Some(next_c) = self.eat_char() {
-                        if next_c == '=' {
-                            return Some(Token { typ: TokenType::Operation, value: format!("{}{}", c, next_c) });
-                        } else {
-                            self.index -= 1;
-                        }
-                    }
-                    Some(Token { typ: TokenType::Operation, value: c.to_string() })
-                }
-                '=' => {
-                    if let Some(next_c) = self.eat_char() {
-                        if next_c == '=' {
-                            return Some(Token { typ: TokenType::Operation, value: "==".to_string() });
-                        } else {
-                            self.index -= 1;
-                        }
-                    }
-                    Some(Token { typ: TokenType::Special, value: c.to_string() })
-                }
-                ':' => {
-                    if let Some(next_c) = self.eat_char() {
-                        if next_c == '=' {
-                            return Some(Token { typ: TokenType::Walrus, value: "".to_string() });
-                        } else {
-                            self.index -= 1;
-                        }
-                    }
-                    Some(Token { typ: TokenType::Colon, value: c.to_string() })
-                },
-                ';' | '{' | '}' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
-                '0'..='9' | '.' => {
-                    self.index -= 1;
-                    let value = self.eat_number();
-                    match value {
-                        Some(x) => Some(Token { typ: TokenType::Number, value: x }),
-                        None => None,
-                    }
-                }
-                'A'..='Z' | 'a'..='z' => {
-                    self.index -= 1;
-                    let value = self.eat_string();
-                    match value {
-                        Some(x) => {
-                            if x == "if" {
-                                Some(Token { typ: TokenType::If, value: "".to_string() })
-                            } else if x == "else" {
-                                Some(Token { typ: TokenType::Else, value: "".to_string() })
-                            } else if x == "let" {
-                                Some(Token { typ: TokenType::Let, value: "".to_string() })
-                            } else {
-                                Some(Token { typ: TokenType::Symbol, value: x })
-                            }
-                        }
-                        None => None,
-                    }
-                }
-                _ => None,
+        let c = self.eat_char()?;
+        match c {
+            ' ' | '\r' | '\t' => self.next(),
+            '\n' => {
+                self.update_current_line();
+                self.next()
             }
-        } else {
-            None
+            '-' => {
+                if let Some(next_c) = self.eat_char() {
+                    if next_c == '>' {
+                        return Some(Token { typ: TokenType::SmallArrow, value: "->".to_string() });
+                    } else {
+                        self.index -= 1;
+                    }
+                }
+                Some(Token { typ: TokenType::Operation, value: c.to_string() })
+            }
+            '+' | '/' | '*' => Some(Token { typ: TokenType::Operation, value: c.to_string() }),
+            '>' | '<' => {
+                if let Some(next_c) = self.eat_char() {
+                    if next_c == '=' {
+                        return Some(Token { typ: TokenType::Operation, value: format!("{}{}", c, next_c) });
+                    } else {
+                        self.index -= 1;
+                    }
+                }
+                Some(Token { typ: TokenType::Operation, value: c.to_string() })
+            }
+            '=' => {
+                if let Some(next_c) = self.eat_char() {
+                    if next_c == '=' {
+                        return Some(Token { typ: TokenType::Operation, value: "==".to_string() });
+                    } else {
+                        self.index -= 1;
+                    }
+                }
+                Some(Token { typ: TokenType::Special, value: c.to_string() })
+            }
+            ':' => {
+                if let Some(next_c) = self.eat_char() {
+                    if next_c == '=' {
+                        return Some(Token { typ: TokenType::Walrus, value: ":=".to_string() });
+                    } else {
+                        self.index -= 1;
+                    }
+                }
+                Some(Token { typ: TokenType::Colon, value: c.to_string() })
+            }
+            ';' | '{' | '}' | '(' | ')' | ',' => Some(Token { typ: TokenType::Special, value: c.to_string() }),
+            '0'..='9' | '.' => {
+                self.index -= 1;
+                let x = self.eat_number()?;
+                Some(Token { typ: TokenType::Number, value: x })
+            }
+            'A'..='Z' | 'a'..='z' => {
+                self.index -= 1;
+                let x = self.eat_string()?;
+                match x.as_str() {
+                    "if" => Some(Token { typ: TokenType::If, value: x }),
+                    "else" => Some(Token { typ: TokenType::Else, value: x }),
+                    "let" => Some(Token { typ: TokenType::Let, value: x }),
+                    "fn" => Some(Token { typ: TokenType::Func, value: x }),
+                    "return" => Some(Token { typ: TokenType::Return, value: x }),
+                    _ => Some(Token { typ: TokenType::Symbol, value: x }),
+                }
+            }
+            _ => None,
         }
     }
 }

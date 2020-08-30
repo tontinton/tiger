@@ -4,28 +4,32 @@ use typed_arena::Arena;
 
 use crate::ast::Expression;
 use crate::lexer::Lexer;
-use crate::parser_scope::ParserScope;
 use crate::token::{Token, TokenType};
 
-type Expr<'c> = &'c Expression<'c>;
-type ExprResult<'c> = Result<&'c Expression<'c>, String>;
+type Expr<'b> = &'b Expression<'b>;
+type ExprResult<'b> = Result<&'b Expression<'b>, String>;
 
-pub struct Parser<'a, 'b, 'c> {
+pub struct Parser<'a, 'b> {
     lexer: &'a mut Lexer,
-    scope: &'b mut ParserScope,
-    arena: &'c Arena<Expression<'c>>,
-    stop_at: char,
-    empty_expression: Expr<'c>,
+    arena: &'b Arena<Expression<'b>>,
+    empty_expression: Expr<'b>,
+    done_parsing: bool,
+    stop_at: Option<char>,
+    separate_at: char,
 }
 
-impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
-    pub fn new(lexer: &'a mut Lexer, scope: &'b mut ParserScope, arena: &'c Arena<Expression<'c>>) -> Self {
+impl<'a, 'b> Parser<'a, 'b> {
+    // TODO: make another constructor that initializes all these stuff, it will be called by main
+    pub fn new(lexer: &'a mut Lexer,
+               arena: &'b Arena<Expression<'b>>,
+               empty_expression: Expr<'b>) -> Self {
         Self {
             lexer,
-            scope,
             arena,
-            stop_at: ';',
-            empty_expression: arena.alloc(Expression::Empty), // TODO: delete from arena when not returning an empty expression
+            empty_expression,
+            done_parsing: false,
+            stop_at: None,
+            separate_at: ';',
         }
     }
 
@@ -33,18 +37,24 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         self.lexer.next()
     }
 
-    fn is_empty_expression(&self, expression: Expr<'c>) -> bool {
+    fn is_empty_expression(&self, expression: Expr<'b>) -> bool {
         expression as *const _ == self.empty_expression as *const _
     }
 
-    fn get_special_char_expression(&mut self, prev: Expr<'c>, token: Token) -> ExprResult<'c> {
+    fn get_special_char_expression(&mut self, prev: Expr<'b>, token: Token) -> ExprResult<'b> {
         let c = token.value.as_bytes()[0] as char;
-        if c == self.stop_at {
+        if c == self.separate_at {
             return Ok(prev);
         }
 
+        if let Some(stop_char) = self.stop_at {
+            if stop_char == c {
+                self.done_parsing = true;
+                return Ok(prev);
+            }
+        }
+
         match c {
-            ';' => Ok(prev), // a semicolon should always stop from reading more expressions
             '=' => {
                 if self.is_empty_expression(prev) {
                     return Err("assignment: no expression before `=`".to_string());
@@ -72,9 +82,20 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                     )))
                 }
             }
-            '{' => self.next_body_until_char('}'),
+            '{' => self.next_body(),
+            '(' => {
+                match prev {
+                    Expression::Literal(_) => {
+                        let variables = self.next_header()?;
+                        self.next_expression(self.arena.alloc(Expression::FunctionHeader(prev, variables)))
+                    }
+                    _ => {
+                        self.next_header()
+                    }
+                }
+            }
             _ => {
-                Err("special: found an unknown character".to_string())
+                Err(format!("special: the character '{}' is out of place", c))
             }
         }
     }
@@ -89,7 +110,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         }
     }
 
-    fn get_operation_expression(&mut self, prev: Expr<'c>, token: Token) -> ExprResult<'c> {
+    fn get_operation_expression(&mut self, prev: Expr<'b>, token: Token) -> ExprResult<'b> {
         let subtree = self.next_expression(self.empty_expression)?;
         if self.is_empty_expression(subtree) {
             return Err(format!("operation: no expression found after {}", token.value));
@@ -120,23 +141,19 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         }
     }
 
-    fn build_variable_declaration_expression(&mut self, name: Token, typ: Token) -> ExprResult<'c> {
+    fn build_variable_declaration_expression(&mut self, name: Token, typ: Token) -> ExprResult<'b> {
         let variable = self.arena.alloc(Expression::Literal(name.clone()));
         let typ = self.arena.alloc(Expression::Literal(typ));
         let value = self.next_expression(variable)?;
         if self.is_empty_expression(value) {
-            Err("`let [name] : [type]`, no assignment expression found for the variable".to_string())
+            Err("`[name] : [type] = [expression]`, no assignment [expression] found".to_string())
         } else {
             // TODO: check that value is actually an assignment expression
-            self.scope.variables.push(name.value);
-            Ok(self.arena.alloc(Expression::VariableDeclaration(variable, typ, value)))
+            Ok(self.arena.alloc(Expression::Declaration(variable, typ, value)))
         }
     }
 
-    fn get_variable_declaration_expression(&mut self, prev: Expr<'c>) -> ExprResult<'c> {
-        if !self.is_empty_expression(prev) {
-            return Err("`let [name] : [type]`, `let` must at the beginning of the expression".to_string());
-        }
+    fn get_variable_declaration_expression(&mut self) -> ExprResult<'b> {
         if let Some(name_token) = self.eat_token() {
             match name_token.typ {
                 TokenType::Symbol => {
@@ -149,11 +166,11 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                                             self.build_variable_declaration_expression(name_token, type_token)
                                         }
                                         _ => {
-                                            Err("`let [name] : [type]`, [type] given after `:` is not a valid symbol".to_string())
+                                            Err("`[name] : [type]`, [type] given after `:` is not a valid symbol".to_string())
                                         }
                                     }
                                 } else {
-                                    Err("`let [name] : [type]`, expression ended prematurely, [type] not found".to_string())
+                                    Err("`[name] : [type]`, expression ended prematurely, [type] not found".to_string())
                                 }
                             }
                             TokenType::Walrus => {
@@ -161,64 +178,73 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                                                                            Token { typ: TokenType::Symbol, value: "auto".to_string() })
                             }
                             _ => {
-                                Err("`let [name] : [type]`, `:` or `:=` did not come after [name]".to_string())
+                                Err("`[name] : [type]`, `:` or `:=` did not come after [name]".to_string())
                             }
                         }
                     } else {
-                        Err("`let [name] : [type]`, expression ended prematurely, nothing came after [name]".to_string())
+                        Err("`[name] : [type]`, expression ended prematurely, nothing came after [name]".to_string())
                     }
                 }
                 _ => {
-                    Err("`let [name] : [type]`, the [name] given is not a valid symbol".to_string())
+                    Err("`[name] : [type]`, the [name] given is not a valid symbol".to_string())
                 }
             }
         } else {
-            Err("`let [name] : [type]`, expression ended prematurely, [name] not found".to_string())
+            Err("`[name] : [type]`, expression ended prematurely, [name] not found".to_string())
         }
     }
 
-    fn next_body_until_char(&mut self, stop_at: char) -> ExprResult<'c> {
-        let mut parser = Parser::new(self.lexer, self.scope, self.arena);
-        parser.stop_at = stop_at;
+    fn next_scope(&mut self, separate_at: char, stop_at: char) -> ExprResult<'b> {
+        let mut parser = Parser::new(self.lexer, self.arena, self.empty_expression);
+        parser.separate_at = separate_at;
+        parser.stop_at = Some(stop_at);
         parser.parse()
     }
 
-    fn next_expression_until_char(&mut self, stop_at: char) -> ExprResult<'c> {
+    fn next_header(&mut self) -> ExprResult<'b> {
+        self.next_scope(',', ')')
+    }
+
+    fn next_body(&mut self) -> ExprResult<'b> {
+        self.next_scope(';', '}')
+    }
+
+    fn next_expression_until_char(&mut self, stop_at: char) -> ExprResult<'b> {
         let prev_stop_at = self.stop_at;
 
-        self.stop_at = stop_at;
+        self.stop_at = Some(stop_at);
         let expression = self.next_expression(self.empty_expression);
         self.stop_at = prev_stop_at;
+        // TODO: this is ugly, need to refactor
+        self.done_parsing = false;
 
         expression
     }
 
-    fn next_expression(&mut self, prev: Expr<'c>) -> ExprResult<'c> {
+    fn next_expression(&mut self, prev: Expr<'b>) -> ExprResult<'b> {
         let token = match self.eat_token() {
             Some(x) => x,
-            None => return Ok(self.empty_expression),
+            None => {
+                self.done_parsing = true;
+                return Ok(self.empty_expression);
+            }
         };
 
         match token.typ {
             TokenType::Special => self.get_special_char_expression(prev, token),
             TokenType::Operation => self.get_operation_expression(prev, token),
-            TokenType::Symbol => {
-                if self.scope.variables.contains(&token.value) {
-                    self.next_expression(self.arena.alloc(Expression::Literal(token)))
-                } else {
-                    Err(format!("`{}` is not declared", token.value))
-                }
-            }
+            TokenType::Symbol => self.next_expression(self.arena.alloc(Expression::Literal(token))),
             TokenType::If => {
                 let condition = self.next_expression_until_char('{')?;
                 if self.is_empty_expression(condition) {
                     return Err("if: empty condition".to_string());
                 }
-                let then = self.next_body_until_char('}')?;
+                let then = self.next_body()?;
                 if self.is_empty_expression(condition) {
                     return Err("if: empty body".to_string());
                 }
                 let if_expr = self.arena.alloc(Expression::IfThen(condition, then));
+                // TODO: implement if statements that don't require an else keyword after
                 let next_expr = self.next_expression(if_expr)?;
                 if self.is_empty_expression(next_expr) {
                     Ok(if_expr)
@@ -250,24 +276,97 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
             TokenType::Number => {
                 self.next_expression(self.arena.alloc(Expression::Literal(token)))
             }
+            TokenType::Colon => {
+                match prev {
+                    Expression::Literal(name_token) => {
+                        if let Some(type_token) = self.eat_token() {
+                            match type_token.typ {
+                                TokenType::Symbol => {
+                                    let variable = self.arena.alloc(Expression::Literal(name_token.clone()));
+                                    let typ = self.arena.alloc(Expression::Literal(type_token));
+                                    self.next_expression(self.arena.alloc(Expression::Declaration(variable, typ, self.empty_expression)))
+                                }
+                                _ => {
+                                    Err("`[name] : [type]`, [type] given after `:` is not a valid symbol".to_string())
+                                }
+                            }
+                        } else {
+                            Err("`[name] : [type]`, expression ended prematurely, [type] not found".to_string())
+                        }
+                    }
+                    _ => Err("`:` must only come after a literal".to_string())
+                }
+            }
             TokenType::Let => {
-                self.get_variable_declaration_expression(prev)
+                if !self.is_empty_expression(prev) {
+                    return Err("`let [name] : [type]`, `let` must at the beginning of the expression".to_string());
+                }
+
+                self.get_variable_declaration_expression()
+            }
+            TokenType::Func => {
+                if !self.is_empty_expression(prev) {
+                    return Err("`fn` must at the beginning of the expression".to_string());
+                }
+                self.next_expression(self.empty_expression)
+            }
+            TokenType::SmallArrow => {
+                match prev {
+                    Expression::FunctionHeader(name_expression, _variables) => {
+                        match name_expression {
+                            Expression::Literal(_) => Ok(0),
+                            _ => Err("the expression before `(` is not a valid function name".to_string())
+                        }?;
+
+                        let type_token = if let Some(next_token) = self.eat_token() {
+                            match next_token.typ {
+                                TokenType::Symbol => {
+                                    Ok(next_token)
+                                }
+                                _ => Err("the type given after `->` is not valid")
+                            }
+                        } else {
+                            Err("no token found after `->`")
+                        }?;
+
+                        let body = self.next_expression(self.empty_expression)?;
+                        match body {
+                            Expression::Body(_expressions) => {
+                                let type_expression = self.arena.alloc(Expression::Literal(type_token));
+                                Ok(self.arena.alloc(Expression::Declaration(prev, type_expression, body)))
+                            }
+                            _ => Err("after `->` there must be a new scope declared by `{`".to_string())
+                        }
+                    }
+                    _ => Err("`->` can only come after a function declaration".to_string())
+                }
+            }
+            TokenType::Return => {
+                if !self.is_empty_expression(prev) {
+                    return Err("`return` must at the beginning of the expression".to_string());
+                }
+
+                let next_expression = self.next_expression(self.empty_expression)?;
+                Ok(self.arena.alloc(Expression::Return(next_expression)))
             }
             _ => {
-                Err(format!("unexpected token"))
+                Err(format!("unexpected token: {}", token.value))
             }
         }
     }
 
-    pub fn parse(mut self) -> ExprResult<'c> {
-        let mut expression_list: Vec<&Expression> = vec![];
+    pub fn parse(mut self) -> ExprResult<'b> {
+        let mut expressions: Vec<&Expression> = vec![];
         loop {
             match self.next_expression(self.empty_expression) {
                 Ok(expression) => {
-                    if self.is_empty_expression(expression) {
+                    if self.is_empty_expression(expression) && self.done_parsing {
                         break;
                     }
-                    expression_list.push(expression);
+                    expressions.push(expression);
+                    if self.done_parsing {
+                        break;
+                    }
                 }
                 Err(e) => {
                     // TODO: handle recursion of parsers better
@@ -282,8 +381,8 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
                 }
             }
         };
-        if expression_list.len() > 0 {
-            Ok(self.arena.alloc(Expression::Body(expression_list)))
+        if expressions.len() > 0 {
+            Ok(self.arena.alloc(Expression::Body(expressions)))
         } else {
             Ok(self.empty_expression)
         }

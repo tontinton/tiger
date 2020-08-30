@@ -1,7 +1,22 @@
-let a : u32 = 3 + 123 * 55;
-let b := 100;
-if a * 5 >= 10 + 2 {
-    a = b * 2;
-} else if a * 2 > 3 {
-    a = b + 1;
+fn fib(num: u32) -> u32 {
+    if num <= 1 {
+        return num;
+    } else {
+        return fib(num - 1) + fib(num - 2);
+    }
+}
+
+fn mul(x: u32, y: u32) -> u32 {
+    return x * y;
+}
+
+fn main() -> void {
+    let a : u32 = 3 + 123 * 55;
+    let b := 20;
+    let c := fib(b);
+    if mul(a, 5) >= b + 2 {
+        return c * 2;
+    } else if a * 2 > 3 {
+        return b + 1;
+    }
 }

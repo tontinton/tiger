@@ -10,6 +10,9 @@ pub enum TokenType {
     Colon,
     Let,
     Walrus,
+    Func,
+    Return,
+    SmallArrow,
 }
 
 #[derive(Clone)]
