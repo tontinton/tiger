@@ -19,7 +19,6 @@ pub struct Parser<'a, 'b> {
 }
 
 impl<'a, 'b> Parser<'a, 'b> {
-    // TODO: make another constructor that initializes all these stuff, it will be called by main
     pub fn new(lexer: &'a mut Lexer,
                arena: &'b Arena<Expression<'b>>,
                empty_expression: Expr<'b>) -> Self {
@@ -93,7 +92,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         self.next_header()
                     }
                 }
-            }
+            },
             _ => {
                 Err(format!("special: the character '{}' is out of place", c))
             }
@@ -116,13 +115,13 @@ impl<'a, 'b> Parser<'a, 'b> {
             return Err(format!("operation: no expression found after {}", token.value));
         }
 
-        let priority = Parser::get_operation_priority(&token);
+        let priority = Self::get_operation_priority(&token);
 
         if self.is_empty_expression(prev) {
             Err(format!("operation: no expression found before: {}", token.value))
         } else {
             if let Expression::Operation(left, subtree_token, right) = subtree {
-                let subtree_priority = Parser::get_operation_priority(&subtree_token);
+                let subtree_priority = Self::get_operation_priority(&subtree_token);
                 if priority > 0 && subtree_priority > 0 && priority > subtree_priority {
                     // Create a rotated left operation tree
                     let new_left = self.arena.alloc(Expression::Operation(prev, token, left));
@@ -210,13 +209,11 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn next_expression_until_char(&mut self, stop_at: char) -> ExprResult<'b> {
-        let prev_stop_at = self.stop_at;
+        let old_separate_at = self.separate_at;
 
-        self.stop_at = Some(stop_at);
+        self.separate_at = stop_at;
         let expression = self.next_expression(self.empty_expression);
-        self.stop_at = prev_stop_at;
-        // TODO: this is ugly, need to refactor
-        self.done_parsing = false;
+        self.separate_at = old_separate_at;
 
         expression
     }
