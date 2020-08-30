@@ -29,16 +29,6 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         }
     }
 
-    fn get_operation_priority(token: &Token) -> usize {
-        let c = token.value.as_bytes()[0] as char;
-        match c {
-            '>' | '<' | '=' => 1,
-            '+' | '-' => 2,
-            '*' | '/' => 3,
-            _ => 0,
-        }
-    }
-
     fn eat_token(&mut self) -> Option<Token> {
         self.lexer.next()
     }
@@ -89,6 +79,16 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
         }
     }
 
+    fn get_operation_priority(token: &Token) -> usize {
+        let c = token.value.as_bytes()[0] as char;
+        match c {
+            '>' | '<' | '=' => 1,
+            '+' | '-' => 2,
+            '*' | '/' => 3,
+            _ => 0,
+        }
+    }
+
     fn get_operation_expression(&mut self, prev: Expr<'c>, token: Token) -> ExprResult<'c> {
         let subtree = self.next_expression(self.empty_expression)?;
         if self.is_empty_expression(subtree) {
@@ -132,6 +132,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
             Ok(self.arena.alloc(Expression::VariableDeclaration(variable, typ, value)))
         }
     }
+
     fn get_variable_declaration_expression(&mut self, prev: Expr<'c>) -> ExprResult<'c> {
         if !self.is_empty_expression(prev) {
             return Err("`let [name] : [type]`, `let` must at the beginning of the expression".to_string());
