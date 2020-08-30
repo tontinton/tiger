@@ -25,7 +25,7 @@ impl<'a, 'b, 'c> Parser<'a, 'b, 'c> {
             scope,
             arena,
             stop_at: ';',
-            empty_expression: &Expression::Empty,
+            empty_expression: arena.alloc(Expression::Empty), // TODO: delete from arena when not returning an empty expression
         }
     }
 
