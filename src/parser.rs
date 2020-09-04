@@ -1,5 +1,3 @@
-use std::any::Any;
-
 use typed_arena::Arena;
 
 use crate::ast::Expression;
@@ -58,17 +56,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                 if self.is_empty_expression(prev) {
                     return Err("assignment: no expression before `=`".to_string());
                 }
-                let prev_token = match &(*prev) {
-                    Expression::Literal(token) => token,
-                    Expression::Operation(_left, token, _right) => token,
+                match &(*prev) {
+                    Expression::Literal(_) => Ok(()),
+                    Expression::Ident(_) => Ok(()),
+                    Expression::Operation(_left, _token, _right) => Ok(()),
                     _ => {
-                        return Err("assignment: the previous expression must either be a literal or an operation".to_string());
+                        Err("assignment: the previous expression must either be a literal or an operation".to_string())
                     }
-                };
-
-                if prev_token.typ.type_id() != TokenType::Symbol.type_id() {
-                    return Err(format!("assignment: the expression `{}` is not a valid symbol", prev_token.value));
-                }
+                }?;
 
                 let next = self.next_expression(self.empty_expression)?;
                 if self.is_empty_expression(next) {
@@ -84,7 +79,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             '{' => self.next_body(),
             '(' => {
                 match prev {
-                    Expression::Literal(_) => {
+                    Expression::Ident(_) => {
                         let variables = self.next_header()?;
                         self.next_expression(self.arena.alloc(Expression::FunctionHeader(prev, variables)))
                     }
@@ -141,8 +136,8 @@ impl<'a, 'b> Parser<'a, 'b> {
     }
 
     fn build_variable_declaration_expression(&mut self, name: Token, typ: Token) -> ExprResult<'b> {
-        let variable = self.arena.alloc(Expression::Literal(name.clone()));
-        let typ = self.arena.alloc(Expression::Literal(typ));
+        let variable = self.arena.alloc(Expression::Ident(name.value));
+        let typ = self.arena.alloc(Expression::Ident(typ.value));
         let value = self.next_expression(variable)?;
         if self.is_empty_expression(value) {
             Err("`[name] : [type] = [expression]`, no assignment [expression] found".to_string())
@@ -230,7 +225,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         match token.typ {
             TokenType::Special => self.get_special_char_expression(prev, token),
             TokenType::Operation => self.get_operation_expression(prev, token),
-            TokenType::Symbol => self.next_expression(self.arena.alloc(Expression::Literal(token))),
+            TokenType::Symbol => self.next_expression(self.arena.alloc(Expression::Ident(token.value))),
             TokenType::If => {
                 let condition = self.next_expression_until_char('{')?;
                 if self.is_empty_expression(condition) {
@@ -275,12 +270,12 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             TokenType::Colon => {
                 match prev {
-                    Expression::Literal(name_token) => {
+                    Expression::Ident(name) => {
                         if let Some(type_token) = self.eat_token() {
                             match type_token.typ {
                                 TokenType::Symbol => {
-                                    let variable = self.arena.alloc(Expression::Literal(name_token.clone()));
-                                    let typ = self.arena.alloc(Expression::Literal(type_token));
+                                    let variable = self.arena.alloc(Expression::Ident(name.clone()));
+                                    let typ = self.arena.alloc(Expression::Ident(type_token.value));
                                     self.next_expression(self.arena.alloc(Expression::Declaration(variable, typ, self.empty_expression)))
                                 }
                                 _ => {
@@ -311,7 +306,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 match prev {
                     Expression::FunctionHeader(name_expression, _variables) => {
                         match name_expression {
-                            Expression::Literal(_) => Ok(0),
+                            Expression::Ident(_) => Ok(0),
                             _ => Err("the expression before `(` is not a valid function name".to_string())
                         }?;
 
@@ -329,7 +324,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         let body = self.next_expression(self.empty_expression)?;
                         match body {
                             Expression::Body(_expressions) => {
-                                let type_expression = self.arena.alloc(Expression::Literal(type_token));
+                                let type_expression = self.arena.alloc(Expression::Ident(type_token.value));
                                 Ok(self.arena.alloc(Expression::Declaration(prev, type_expression, body)))
                             }
                             _ => Err("after `->` there must be a new scope declared by `{`".to_string())

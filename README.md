@@ -51,20 +51,20 @@ The result is:
       expression:
         function:
           name:
-            literal: fib
+            ident: fib
           variables:
             [
               (
                 declaration:
                   expression:
-                    literal: num
+                    ident: num
                   type:
-                    literal: u32
+                    ident: u32
                   value: empty
               ),
             ]
       type:
-        literal: u32
+        ident: u32
       value:
         [
           (
@@ -72,14 +72,14 @@ The result is:
               condition:
                 <=:
                   left:
-                    literal: num
+                    ident: num
                   right:
                     literal: 1
               then:
                 [
                   (
                     return:
-                        literal: num
+                        ident: num
                   ),
                 ]
               else:
@@ -90,13 +90,13 @@ The result is:
                           left:
                             function:
                               name:
-                                literal: fib
+                                ident: fib
                               variables:
                                 [
                                   (
                                     -:
                                       left:
-                                        literal: num
+                                        ident: num
                                       right:
                                         literal: 1
                                   ),
@@ -104,13 +104,13 @@ The result is:
                           right:
                             function:
                               name:
-                                literal: fib
+                                ident: fib
                               variables:
                                 [
                                   (
                                     -:
                                       left:
-                                        literal: num
+                                        ident: num
                                       right:
                                         literal: 2
                                   ),
@@ -125,37 +125,37 @@ The result is:
       expression:
         function:
           name:
-            literal: mul
+            ident: mul
           variables:
             [
               (
                 declaration:
                   expression:
-                    literal: x
+                    ident: x
                   type:
-                    literal: u32
+                    ident: u32
                   value: empty
               ),
               (
                 declaration:
                   expression:
-                    literal: y
+                    ident: y
                   type:
-                    literal: u32
+                    ident: u32
                   value: empty
               ),
             ]
       type:
-        literal: u32
+        ident: u32
       value:
         [
           (
             return:
                 *:
                   left:
-                    literal: x
+                    ident: x
                   right:
-                    literal: y
+                    ident: y
           ),
         ]
   ),
@@ -164,22 +164,22 @@ The result is:
       expression:
         function:
           name:
-            literal: main
+            ident: main
           variables: empty
       type:
-        literal: void
+        ident: void
       value:
         [
           (
             declaration:
               expression:
-                literal: a
+                ident: a
               type:
-                literal: u32
+                ident: u32
               value:
                 =:
                   left:
-                    literal: a
+                    ident: a
                   right:
                     +:
                       left:
@@ -194,26 +194,26 @@ The result is:
           (
             declaration:
               expression:
-                literal: b
+                ident: b
               type:
-                literal: auto
+                ident: auto
               value:
                 literal: 20
           ),
           (
             declaration:
               expression:
-                literal: c
+                ident: c
               type:
-                literal: auto
+                ident: auto
               value:
                 function:
                   name:
-                    literal: fib
+                    ident: fib
                   variables:
                     [
                       (
-                        literal: b
+                        ident: b
                       ),
                     ]
           ),
@@ -224,11 +224,11 @@ The result is:
                   left:
                     function:
                       name:
-                        literal: mul
+                        ident: mul
                       variables:
                         [
                           (
-                            literal: a
+                            ident: a
                           ),
                           (
                             literal: 5
@@ -237,7 +237,7 @@ The result is:
                   right:
                     +:
                       left:
-                        literal: b
+                        ident: b
                       right:
                         literal: 2
               then:
@@ -246,7 +246,7 @@ The result is:
                     return:
                         *:
                           left:
-                            literal: c
+                            ident: c
                           right:
                             literal: 2
                   ),
@@ -258,7 +258,7 @@ The result is:
                       left:
                         *:
                           left:
-                            literal: a
+                            ident: a
                           right:
                             literal: 2
                       right:
@@ -269,7 +269,7 @@ The result is:
                         return:
                             +:
                               left:
-                                literal: b
+                                ident: b
                               right:
                                 literal: 1
                       ),
