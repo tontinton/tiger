@@ -87,7 +87,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         self.next_header()
                     }
                 }
-            },
+            }
             _ => {
                 Err(format!("special: the character '{}' is out of place", c))
             }
@@ -255,9 +255,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                         if self.is_empty_expression(else_expr) {
                             Err("else: `else` block is empty".to_string())
                         } else {
-                            Ok(self.arena.alloc(Expression::IfElseThen(condition,
-                                                                       then,
-                                                                       else_expr)))
+                            Ok(self.arena.alloc(Expression::IfElseThen(condition, else_expr, then)))
                         }
                     }
                     _ => {

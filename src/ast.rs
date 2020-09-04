@@ -56,7 +56,7 @@ impl Expression<'_> {
                         Expression::get_formatted_tabs(tabs))
             }
             Expression::IfElseThen(condition, then, else_expr) => {
-                format!("\n{3}if:\n  {3}condition: {0}\n  {3}then: {1}\n  {3}else: {2}",
+                format!("\n{3}if:\n  {3}condition: {0}\n  {3}else: {1}\n  {3}then: {2}",
                         condition.get_tree_string(tabs + 2),
                         then.get_tree_string(tabs + 2),
                         else_expr.get_tree_string(tabs + 2),

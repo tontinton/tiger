@@ -75,13 +75,6 @@ The result is:
                     ident: num
                   right:
                     literal: 1
-              then:
-                [
-                  (
-                    return:
-                        ident: num
-                  ),
-                ]
               else:
                 [
                   (
@@ -115,6 +108,13 @@ The result is:
                                         literal: 2
                                   ),
                                 ]
+                  ),
+                ]
+              then:
+                [
+                  (
+                    return:
+                        ident: num
                   ),
                 ]
           ),
@@ -240,17 +240,6 @@ The result is:
                         ident: b
                       right:
                         literal: 2
-              then:
-                [
-                  (
-                    return:
-                        *:
-                          left:
-                            ident: c
-                          right:
-                            literal: 2
-                  ),
-                ]
               else:
                 if:
                   condition:
@@ -274,6 +263,17 @@ The result is:
                                 literal: 1
                       ),
                     ]
+              then:
+                [
+                  (
+                    return:
+                        *:
+                          left:
+                            ident: c
+                          right:
+                            literal: 2
+                  ),
+                ]
           ),
         ]
   ),
