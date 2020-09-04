@@ -3,6 +3,7 @@ use crate::token::Token;
 type Expr<'a> = &'a Expression<'a>;
 
 // TODO: change all enum values to have names
+#[derive(Debug)]
 pub enum Expression<'a> {
     Empty,
     Ident(String),

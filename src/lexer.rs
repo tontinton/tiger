@@ -106,6 +106,23 @@ impl Lexer {
 
         Some(self.text[start_index..self.index].to_string())
     }
+
+    pub fn peek(&mut self) -> Option<Token> {
+        // TODO: fix this patchy implementation of peek
+        let index = self.index;
+        let prev = self.prev_new_line_index;
+        let next = self.next_new_line_index;
+        let current = self.current_line_index;
+
+        let token = self.next();
+
+        self.index = index;
+        self.prev_new_line_index = prev;
+        self.next_new_line_index = next;
+        self.current_line_index = current;
+
+        token
+    }
 }
 
 impl Iterator for Lexer {

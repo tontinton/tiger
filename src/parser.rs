@@ -76,7 +76,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                     )))
                 }
             }
-            '{' => self.next_body(),
+            '{' => {
+                // TODO: match on if statements and functions here
+                if self.is_empty_expression(prev) {
+                    self.next_body()
+                } else {
+                    Err("`{` can only come after an empty expression".to_string())
+                }
+            }
             '(' => {
                 match prev {
                     Expression::Ident(_) => {
@@ -236,12 +243,14 @@ impl<'a, 'b> Parser<'a, 'b> {
                     return Err("if: empty body".to_string());
                 }
                 let if_expr = self.arena.alloc(Expression::IfThen(condition, then));
-                // TODO: implement if statements that don't require an else keyword after
-                let next_expr = self.next_expression(if_expr)?;
-                if self.is_empty_expression(next_expr) {
-                    Ok(if_expr)
+
+                if let Some(next_token) = self.lexer.peek() {
+                    match next_token.typ {
+                        TokenType::Else => self.next_expression(if_expr),
+                        _ => Ok(if_expr)
+                    }
                 } else {
-                    Ok(next_expr)
+                    Ok(if_expr)
                 }
             }
             TokenType::Else => {
@@ -253,13 +262,16 @@ impl<'a, 'b> Parser<'a, 'b> {
                     Expression::IfThen(condition, then) => {
                         let else_expr = self.next_expression(self.empty_expression)?;
                         if self.is_empty_expression(else_expr) {
-                            Err("else: `else` block is empty".to_string())
-                        } else {
-                            Ok(self.arena.alloc(Expression::IfElseThen(condition, else_expr, then)))
+                            return Ok(prev);
+                        }
+                        match else_expr {
+                            Expression::IfThen(_, _) => Ok(self.arena.alloc(Expression::IfElseThen(condition, else_expr, then))),
+                            Expression::Body(_) => Ok(self.arena.alloc(Expression::IfElseThen(condition, else_expr, then))),
+                            _ => Err("`{` was not found after `else`".to_string())
                         }
                     }
                     _ => {
-                        Err("else: must be after an `if` block".to_string())
+                        Err("`else` can only be after an `if` block".to_string())
                     }
                 }
             }
@@ -321,7 +333,7 @@ impl<'a, 'b> Parser<'a, 'b> {
 
                         let body = self.next_expression(self.empty_expression)?;
                         match body {
-                            Expression::Body(_expressions) => {
+                            Expression::Body(_) => {
                                 let type_expression = self.arena.alloc(Expression::Ident(type_token.value));
                                 Ok(self.arena.alloc(Expression::Declaration(prev, type_expression, body)))
                             }

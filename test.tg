@@ -1,16 +1,15 @@
 fn fib(num: u32) -> u32 {
     if num <= 1 {
         return num;
-    } else {
-        return fib(num - 1) + fib(num - 2);
     }
+    return fib(num - 1) + fib(num - 2);
 }
 
 fn mul(x: u32, y: u32) -> u32 {
     return x * y;
 }
 
-fn main() -> void {
+fn main() -> u32 {
     let a : u32 = 3 + 123 * 55;
     let b := 20; // Walrus operator for auto type inference
     let c := fib(b);
@@ -19,4 +18,5 @@ fn main() -> void {
     } else if a * 2 > 3 {
         return b + 1;
     }
+    return 0;
 }

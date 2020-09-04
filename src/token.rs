@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum TokenType {
     Operation,
     Special,
@@ -15,7 +15,7 @@ pub enum TokenType {
     SmallArrow,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Token {
     pub typ: TokenType,
     pub value: String,

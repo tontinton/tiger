@@ -22,16 +22,15 @@ when ``test.tg`` looks like:
 fn fib(num: u32) -> u32 {
     if num <= 1 {
         return num;
-    } else {
-        return fib(num - 1) + fib(num - 2);
     }
+    return fib(num - 1) + fib(num - 2);
 }
 
 fn mul(x: u32, y: u32) -> u32 {
     return x * y;
 }
 
-fn main() -> void {
+fn main() -> u32 {
     let a : u32 = 3 + 123 * 55;
     let b := 20; // Walrus operator for auto type inference
     let c := fib(b);
@@ -40,6 +39,7 @@ fn main() -> void {
     } else if a * 2 > 3 {
         return b + 1;
     }
+    return 0;
 }
 ```
 
@@ -75,41 +75,6 @@ The result is:
                     ident: num
                   right:
                     literal: 1
-              else:
-                [
-                  (
-                    return:
-                        +:
-                          left:
-                            function:
-                              name:
-                                ident: fib
-                              variables:
-                                [
-                                  (
-                                    -:
-                                      left:
-                                        ident: num
-                                      right:
-                                        literal: 1
-                                  ),
-                                ]
-                          right:
-                            function:
-                              name:
-                                ident: fib
-                              variables:
-                                [
-                                  (
-                                    -:
-                                      left:
-                                        ident: num
-                                      right:
-                                        literal: 2
-                                  ),
-                                ]
-                  ),
-                ]
               then:
                 [
                   (
@@ -117,6 +82,38 @@ The result is:
                         ident: num
                   ),
                 ]
+          ),
+          (
+            return:
+                +:
+                  left:
+                    function:
+                      name:
+                        ident: fib
+                      variables:
+                        [
+                          (
+                            -:
+                              left:
+                                ident: num
+                              right:
+                                literal: 1
+                          ),
+                        ]
+                  right:
+                    function:
+                      name:
+                        ident: fib
+                      variables:
+                        [
+                          (
+                            -:
+                              left:
+                                ident: num
+                              right:
+                                literal: 2
+                          ),
+                        ]
           ),
         ]
   ),
@@ -167,7 +164,7 @@ The result is:
             ident: main
           variables: empty
       type:
-        ident: void
+        ident: u32
       value:
         [
           (
@@ -274,6 +271,10 @@ The result is:
                             literal: 2
                   ),
                 ]
+          ),
+          (
+            return:
+                literal: 0
           ),
         ]
   ),
