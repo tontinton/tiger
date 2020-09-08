@@ -48,69 +48,69 @@ The result is:
 [
   (
     declaration:
-      expression:
+      expression: 
         function:
-          name:
+          name: 
             ident: fib
-          variables:
-            [
-              (
+          variables: 
+            [            
+              (            
                 declaration:
-                  expression:
+                  expression: 
                     ident: num
-                  type:
+                  type: 
                     ident: u32
                   value: empty
               ),
             ]
-      type:
+      type: 
         ident: u32
-      value:
-        [
-          (
+      value: 
+        [        
+          (        
             if:
-              condition:
+              condition: 
                 <=:
-                  left:
+                  left: 
                     ident: num
-                  right:
+                  right: 
                     literal: 1
-              then:
-                [
-                  (
-                    return:
+              then: 
+                [                
+                  (                
+                    return: 
                         ident: num
                   ),
                 ]
-          ),
-          (
-            return:
+          ),        
+          (        
+            return: 
                 +:
-                  left:
+                  left: 
                     function:
-                      name:
+                      name: 
                         ident: fib
-                      variables:
-                        [
-                          (
+                      variables: 
+                        [                        
+                          (                        
                             -:
-                              left:
+                              left: 
                                 ident: num
-                              right:
+                              right: 
                                 literal: 1
                           ),
                         ]
-                  right:
+                  right: 
                     function:
-                      name:
+                      name: 
                         ident: fib
-                      variables:
-                        [
-                          (
+                      variables: 
+                        [                        
+                          (                        
                             -:
-                              left:
+                              left: 
                                 ident: num
-                              right:
+                              right: 
                                 literal: 2
                           ),
                         ]
@@ -119,161 +119,157 @@ The result is:
   ),
   (
     declaration:
-      expression:
+      expression: 
         function:
-          name:
+          name: 
             ident: mul
-          variables:
-            [
-              (
+          variables: 
+            [            
+              (            
                 declaration:
-                  expression:
+                  expression: 
                     ident: x
-                  type:
+                  type: 
                     ident: u32
                   value: empty
-              ),
-              (
+              ),            
+              (            
                 declaration:
-                  expression:
+                  expression: 
                     ident: y
-                  type:
+                  type: 
                     ident: u32
                   value: empty
               ),
             ]
-      type:
+      type: 
         ident: u32
-      value:
-        [
-          (
-            return:
+      value: 
+        [        
+          (        
+            return: 
                 *:
-                  left:
+                  left: 
                     ident: x
-                  right:
+                  right: 
                     ident: y
           ),
         ]
   ),
   (
     declaration:
-      expression:
+      expression: 
         function:
-          name:
+          name: 
             ident: main
           variables: empty
-      type:
+      type: 
         ident: u32
-      value:
-        [
-          (
+      value: 
+        [        
+          (        
             declaration:
-              expression:
+              expression: 
                 ident: a
-              type:
+              type: 
                 ident: u32
-              value:
-                =:
-                  left:
-                    ident: a
-                  right:
-                    +:
-                      left:
-                        literal: 3
-                      right:
-                        *:
-                          left:
-                            literal: 123
-                          right:
-                            literal: 55
-          ),
-          (
+              value: 
+                +:
+                  left: 
+                    literal: 3
+                  right: 
+                    *:
+                      left: 
+                        literal: 123
+                      right: 
+                        literal: 55
+          ),        
+          (        
             declaration:
-              expression:
+              expression: 
                 ident: b
-              type:
+              type: 
                 ident: auto
-              value:
+              value: 
                 literal: 20
-          ),
-          (
+          ),        
+          (        
             declaration:
-              expression:
+              expression: 
                 ident: c
-              type:
+              type: 
                 ident: auto
-              value:
+              value: 
                 function:
-                  name:
+                  name: 
                     ident: fib
-                  variables:
-                    [
-                      (
+                  variables: 
+                    [                    
+                      (                    
                         ident: b
                       ),
                     ]
-          ),
-          (
+          ),        
+          (        
             if:
-              condition:
+              condition: 
                 >=:
-                  left:
+                  left: 
                     function:
-                      name:
+                      name: 
                         ident: mul
-                      variables:
-                        [
-                          (
+                      variables: 
+                        [                        
+                          (                        
                             ident: a
-                          ),
-                          (
+                          ),                        
+                          (                        
                             literal: 5
                           ),
                         ]
-                  right:
+                  right: 
                     +:
-                      left:
+                      left: 
                         ident: b
-                      right:
+                      right: 
                         literal: 2
-              else:
+              else: 
                 if:
-                  condition:
+                  condition: 
                     >:
-                      left:
+                      left: 
                         *:
-                          left:
+                          left: 
                             ident: a
-                          right:
+                          right: 
                             literal: 2
-                      right:
+                      right: 
                         literal: 3
-                  then:
-                    [
-                      (
-                        return:
+                  then: 
+                    [                    
+                      (                    
+                        return: 
                             +:
-                              left:
+                              left: 
                                 ident: b
-                              right:
+                              right: 
                                 literal: 1
                       ),
                     ]
-              then:
-                [
-                  (
-                    return:
+              then: 
+                [                
+                  (                
+                    return: 
                         *:
-                          left:
+                          left: 
                             ident: c
-                          right:
+                          right: 
                             literal: 2
                   ),
                 ]
-          ),
-          (
-            return:
+          ),        
+          (        
+            return: 
                 literal: 0
           ),
         ]

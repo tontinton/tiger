@@ -142,18 +142,7 @@ impl<'a, 'b> Parser<'a, 'b> {
         }
     }
 
-    fn build_variable_declaration_expression(&mut self, name: Token, typ: Token) -> ExprResult<'b> {
-        let variable = self.arena.alloc(Expression::Ident(name.value));
-        let typ = self.arena.alloc(Expression::Ident(typ.value));
-        let value = self.next_expression(variable)?;
-        if self.is_empty_expression(value) {
-            Err("`[name] : [type] = [expression]`, no assignment [expression] found".to_string())
-        } else {
-            // TODO: check that value is actually an assignment expression
-            Ok(self.arena.alloc(Expression::Declaration(variable, typ, value)))
-        }
-    }
-
+    // TODO: fix this mess of a function
     fn get_variable_declaration_expression(&mut self) -> ExprResult<'b> {
         if let Some(name_token) = self.eat_token() {
             match name_token.typ {
@@ -164,31 +153,43 @@ impl<'a, 'b> Parser<'a, 'b> {
                                 if let Some(type_token) = self.eat_token() {
                                     match type_token.typ {
                                         TokenType::Symbol => {
-                                            self.build_variable_declaration_expression(name_token, type_token)
+                                            let variable = self.arena.alloc(Expression::Ident(name_token.value));
+                                            let value = self.next_expression(variable)?;
+                                            if self.is_empty_expression(value) {
+                                                Err("`[name] : [type] = [expression]`, no [expression] found".to_string())
+                                            } else {
+                                                match value {
+                                                    Expression::Operation(_left, _token, right) => {
+                                                        let typ = self.arena.alloc(Expression::Ident(type_token.value));
+                                                        Ok(self.arena.alloc(Expression::Declaration(variable, typ, right)))
+                                                    }
+                                                    _ => Err("`[name] : [type] = [expression]`, the [expression] must be an assignment".to_string())
+                                                }
+                                            }
                                         }
-                                        _ => {
-                                            Err("`[name] : [type]`, [type] given after `:` is not a valid symbol".to_string())
-                                        }
+                                        _ =>  Err("`[name] : [type]`, [type] given after `:` is not a valid symbol".to_string())
                                     }
                                 } else {
                                     Err("`[name] : [type]`, expression ended prematurely, [type] not found".to_string())
                                 }
                             }
                             TokenType::Walrus => {
-                                self.build_variable_declaration_expression(name_token,
-                                                                           Token { typ: TokenType::Symbol, value: "auto".to_string() })
+                                let value = self.next_expression(self.empty_expression)?;
+                                if self.is_empty_expression(value) {
+                                    Err("`[name] := [expression]`, no [expression] found".to_string())
+                                } else {
+                                    let variable = self.arena.alloc(Expression::Ident(name_token.value));
+                                    let typ = self.arena.alloc(Expression::Ident("auto".to_string()));
+                                    Ok(self.arena.alloc(Expression::Declaration(variable, typ, value)))
+                                }
                             }
-                            _ => {
-                                Err("`[name] : [type]`, `:` or `:=` did not come after [name]".to_string())
-                            }
+                            _ =>  Err("`[name] : [type]`, `:` or `:=` did not come after [name]".to_string())
                         }
                     } else {
                         Err("`[name] : [type]`, expression ended prematurely, nothing came after [name]".to_string())
                     }
                 }
-                _ => {
-                    Err("`[name] : [type]`, the [name] given is not a valid symbol".to_string())
-                }
+                _ =>  Err("`[name] : [type]`, the [name] given is not a valid symbol".to_string())
             }
         } else {
             Err("`[name] : [type]`, expression ended prematurely, [name] not found".to_string())
