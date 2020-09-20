@@ -5,8 +5,8 @@ use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
 use crate::types::Type;
 
-type Expr<'b> = &'b Expression<'b>;
-type ExprResult<'b> = Result<&'b Expression<'b>, String>;
+type Expr<'b> = &'b mut Expression<'b>;
+type ExprResult<'b> = Result<&'b mut Expression<'b>, String>;
 
 pub struct Parser<'a, 'b> {
     lexer: &'a mut Lexer,

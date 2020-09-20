@@ -1,7 +1,7 @@
 use crate::token::Token;
 use crate::types::Type;
 
-type Expr<'a> = &'a Expression<'a>;
+type Expr<'a> = &'a mut Expression<'a>;
 
 // TODO: change all enum values to have names
 #[derive(Debug)]

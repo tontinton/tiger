@@ -40,12 +40,17 @@ impl TypeInference {
                         }
                     }
                 }
-                for (name, (_return_type, _function_params, function_expressions)) in functions {
-                    println!("function: {}", name);
+                for (function_name, (_return_type, _function_params, function_expressions)) in functions {
+                    println!("function: {}", function_name);
                     for expression in function_expressions {
-                        if let Expression::Declaration(decl, typ, _value) = expression {
-                            if let Expression::Ident(var_name) = decl {
-                                println!("type of {} is {}", var_name, typ);
+                        if let Expression::Declaration(declaration, ref mut typ, _value) = expression {
+                            if let Type::Undetermined { name } = typ {
+                                if let Some(inferred_type) = self.types.get(name) {
+                                    *typ = (*inferred_type).clone();
+                                    if let Expression::Ident(var_name) = declaration {
+                                        println!("type of {} is {}", var_name, inferred_type);
+                                    }
+                                }
                             }
                         }
                     }
