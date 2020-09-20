@@ -1,18 +1,21 @@
 use std::path::Path;
 
-use clap::{App, Arg, crate_authors, crate_name, crate_version};
+use clap::{crate_authors, crate_name, crate_version, App, Arg};
 use typed_arena::Arena;
 
 use crate::ast::Expression;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
+use crate::typing::TypeInference;
 
-mod token;
-mod lexer;
 mod ast;
+mod lexer;
 mod parser;
+mod token;
+mod types;
+mod typing;
 
-fn main() {
+fn main() -> Result<(), String> {
     let matches = App::new(crate_name!())
         .version(crate_version!())
         .about("The tiger language compiler")
@@ -28,21 +31,20 @@ fn main() {
     let input_file = matches.value_of("input").unwrap();
 
     let arena = Arena::new();
-    let ast_result = match Lexer::from_file(Path::new(input_file)) {
+    let ast = match Lexer::from_file(Path::new(input_file)) {
         Ok(mut lexer) => {
             let parser = Parser::new(&mut lexer, &arena, arena.alloc(Expression::Empty));
             match parser.parse() {
                 Ok(expression) => Ok(expression),
-                Err(e) => Err(format!("{}", e))
+                Err(e) => Err(format!("{}", e)),
             }
         }
-        Err(e) => Err(format!("{}", e))
-    };
+        Err(e) => Err(format!("{}", e)),
+    }?;
 
-    println!("{}", match ast_result {
-        Ok(ast) => ast.to_string(),
-        Err(e) => e
-    });
+    let type_inference = TypeInference::new();
+    type_inference.infer_ast_of_file(ast)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -58,10 +60,10 @@ mod tests {
                 let parser = Parser::new(&mut lexer, &arena, arena.alloc(Expression::Empty));
                 match parser.parse() {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(format!("{}", e))
+                    Err(e) => Err(format!("{}", e)),
                 }
             }
-            Err(e) => Err(format!("{}", e))
+            Err(e) => Err(format!("{}", e)),
         }
     }
 }

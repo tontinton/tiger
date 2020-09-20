@@ -1,4 +1,5 @@
 use crate::token::Token;
+use crate::types::Type;
 
 type Expr<'a> = &'a Expression<'a>;
 
@@ -7,13 +8,17 @@ type Expr<'a> = &'a Expression<'a>;
 pub enum Expression<'a> {
     Empty,
     Ident(String),
-    Literal(Token),
+    Literal(String),
     Operation(Expr<'a>, Token, Expr<'a>),
     IfThen(Expr<'a>, Expr<'a>),
     IfElseThen(Expr<'a>, Expr<'a>, Expr<'a>),
     Body(Vec<Expr<'a>>),
-    Declaration(Expr<'a> /* expression */, Expr<'a> /* type */, Expr<'a> /* value */),
-    FunctionHeader(Expr<'a> /* name */, Expr<'a> /* variables */),
+    Declaration(
+        Expr<'a>, /* expression */
+        Type,     /* type */
+        Expr<'a>, /* value */
+    ),
+    FunctionHeader(String /* name */, Expr<'a> /* variables */),
     Return(Expr<'a>),
 }
 
@@ -29,58 +34,66 @@ impl Expression<'_> {
     fn get_tree_string(&self, tabs: usize) -> String {
         match self {
             Expression::Empty => "empty".to_string(),
-            Expression::Ident(name) => format!("\n{1}ident: {0}", name, Expression::get_formatted_tabs(tabs)),
-            Expression::Literal(token) => {
-                format!("\n{1}literal: {0}",
-                        token.value.clone(),
-                        Expression::get_formatted_tabs(tabs))
-            },
-            Expression::Operation(left, token, right) => {
-                format!("\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",
-                        token.value,
-                        left.get_tree_string(tabs + 2),
-                        right.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
+            Expression::Ident(name) => format!(
+                "\n{1}ident: {0}",
+                name,
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::Literal(name) => format!(
+                "\n{1}literal: {0}",
+                name,
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::Operation(left, token, right) => format!(
+                "\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",
+                token.value,
+                left.get_tree_string(tabs + 2),
+                right.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
             Expression::Body(expressions) => {
                 let mut str = "".to_string();
                 let formatted_tabs = Expression::get_formatted_tabs(tabs);
                 for expression in expressions {
-                    str.push_str(&*format!("{1}\n  {1}({1}{0}\n  {1}),", expression.get_tree_string(tabs + 2), formatted_tabs));
+                    str.push_str(&*format!(
+                        "{1}\n  {1}({1}{0}\n  {1}),",
+                        expression.get_tree_string(tabs + 2),
+                        formatted_tabs
+                    ));
                 }
                 format!("\n{1}[{0}\n{1}]", str, formatted_tabs)
             }
-            Expression::IfThen(condition, then) => {
-                format!("\n{2}if:\n  {2}condition: {0}\n  {2}then: {1}",
-                        condition.get_tree_string(tabs + 2),
-                        then.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
-            Expression::IfElseThen(condition, then, else_expr) => {
-                format!("\n{3}if:\n  {3}condition: {0}\n  {3}else: {1}\n  {3}then: {2}",
-                        condition.get_tree_string(tabs + 2),
-                        then.get_tree_string(tabs + 2),
-                        else_expr.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
-            Expression::Declaration(expression, typ, value) => {
-                format!("\n{3}declaration:\n  {3}expression: {0}\n  {3}type: {1}\n  {3}value: {2}",
-                        expression.get_tree_string(tabs + 2),
-                        typ.get_tree_string(tabs + 2),
-                        value.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
-            Expression::FunctionHeader(name, variables) => {
-                format!("\n{2}function:\n  {2}name: {0}\n  {2}variables: {1}",
-                        name.get_tree_string(tabs + 2),
-                        variables.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
-            Expression::Return(expression) => {
-                format!("\n{1}return: {0}",
-                        expression.get_tree_string(tabs + 2),
-                        Expression::get_formatted_tabs(tabs))
-            }
+            Expression::IfThen(condition, then) => format!(
+                "\n{2}if:\n  {2}condition: {0}\n  {2}then: {1}",
+                condition.get_tree_string(tabs + 2),
+                then.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::IfElseThen(condition, then, else_expr) => format!(
+                "\n{3}if:\n  {3}condition: {0}\n  {3}else: {1}\n  {3}then: {2}",
+                condition.get_tree_string(tabs + 2),
+                then.get_tree_string(tabs + 2),
+                else_expr.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::Declaration(expression, typ, value) => format!(
+                "\n{3}declaration:\n  {3}expression: {0}\n  {3}type: {1}\n  {3}value: {2}",
+                expression.get_tree_string(tabs + 2),
+                typ,
+                value.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::FunctionHeader(name, variables) => format!(
+                "\n{2}function:\n  {2}name: {0}\n  {2}variables: {1}",
+                name,
+                variables.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
+            Expression::Return(expression) => format!(
+                "\n{1}return: {0}",
+                expression.get_tree_string(tabs + 2),
+                Expression::get_formatted_tabs(tabs)
+            ),
         }
     }
 }

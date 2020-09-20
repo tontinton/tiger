@@ -3,6 +3,7 @@ use typed_arena::Arena;
 use crate::ast::Expression;
 use crate::lexer::Lexer;
 use crate::token::{Token, TokenType};
+use crate::types::Type;
 
 type Expr<'b> = &'b Expression<'b>;
 type ExprResult<'b> = Result<&'b Expression<'b>, String>;
@@ -86,9 +87,9 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             '(' => {
                 match prev {
-                    Expression::Ident(_) => {
+                    Expression::Ident(name) => {
                         let variables = self.next_header()?;
-                        self.next_expression(self.arena.alloc(Expression::FunctionHeader(prev, variables)))
+                        self.next_expression(self.arena.alloc(Expression::FunctionHeader(name.clone(), variables)))
                     }
                     _ => {
                         self.next_header()
@@ -160,7 +161,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                                             } else {
                                                 match value {
                                                     Expression::Operation(_left, _token, right) => {
-                                                        let typ = self.arena.alloc(Expression::Ident(type_token.value));
+                                                        let typ = Type::Undetermined{name: type_token.value};
                                                         Ok(self.arena.alloc(Expression::Declaration(variable, typ, right)))
                                                     }
                                                     _ => Err("`[name] : [type] = [expression]`, the [expression] must be an assignment".to_string())
@@ -179,8 +180,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                                     Err("`[name] := [expression]`, no [expression] found".to_string())
                                 } else {
                                     let variable = self.arena.alloc(Expression::Ident(name_token.value));
-                                    let typ = self.arena.alloc(Expression::Ident("auto".to_string()));
-                                    Ok(self.arena.alloc(Expression::Declaration(variable, typ, value)))
+                                    Ok(self.arena.alloc(Expression::Declaration(variable, Type::Auto, value)))
                                 }
                             }
                             _ =>  Err("`[name] : [type]`, `:` or `:=` did not come after [name]".to_string())
@@ -277,7 +277,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                 }
             }
             TokenType::Number => {
-                self.next_expression(self.arena.alloc(Expression::Literal(token)))
+                self.next_expression(self.arena.alloc(Expression::Literal(token.value)))
             }
             TokenType::Colon => {
                 match prev {
@@ -286,7 +286,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                             match type_token.typ {
                                 TokenType::Symbol => {
                                     let variable = self.arena.alloc(Expression::Ident(name.clone()));
-                                    let typ = self.arena.alloc(Expression::Ident(type_token.value));
+                                    let typ = Type::Undetermined {name: type_token.value};
                                     self.next_expression(self.arena.alloc(Expression::Declaration(variable, typ, self.empty_expression)))
                                 }
                                 _ => {
@@ -297,7 +297,7 @@ impl<'a, 'b> Parser<'a, 'b> {
                             Err("`[name] : [type]`, expression ended prematurely, [type] not found".to_string())
                         }
                     }
-                    _ => Err("`:` must only come after a literal".to_string())
+                    _ => Err("`:` must only come after a variable name".to_string())
                 }
             }
             TokenType::Let => {
@@ -315,12 +315,7 @@ impl<'a, 'b> Parser<'a, 'b> {
             }
             TokenType::SmallArrow => {
                 match prev {
-                    Expression::FunctionHeader(name_expression, _variables) => {
-                        match name_expression {
-                            Expression::Ident(_) => Ok(0),
-                            _ => Err("the expression before `(` is not a valid function name".to_string())
-                        }?;
-
+                    Expression::FunctionHeader(_name, _variables) => {
                         let type_token = if let Some(next_token) = self.eat_token() {
                             match next_token.typ {
                                 TokenType::Symbol => {
@@ -335,8 +330,8 @@ impl<'a, 'b> Parser<'a, 'b> {
                         let body = self.next_expression(self.empty_expression)?;
                         match body {
                             Expression::Body(_) => {
-                                let type_expression = self.arena.alloc(Expression::Ident(type_token.value));
-                                Ok(self.arena.alloc(Expression::Declaration(prev, type_expression, body)))
+                                let typ = Type::Undetermined {name: type_token.value};
+                                Ok(self.arena.alloc(Expression::Declaration(prev, typ, body)))
                             }
                             _ => Err("after `->` there must be a new scope declared by `{`".to_string())
                         }
