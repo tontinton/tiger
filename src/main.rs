@@ -19,7 +19,6 @@ fn main() {
         .author(crate_authors!())
         .arg(
             Arg::with_name("input")
-                .about("the input file to use")
                 .index(1)
                 .required(true),
         )
