@@ -1,28 +1,37 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use generational_arena::Arena;
+use generational_arena::Index;
+
 use crate::token::Token;
 use crate::types::Type;
 
-type Expr<'a> = &'a mut Expression<'a>;
+lazy_static! {
+    pub static ref EXPRESSION_ARENA : Rc<RefCell<Arena<Expression>>> = Arc::new(RefCell::new(Arena::new()));
+    pub static ref EMPTY_EXPRESSION : Index = EXPRESSION_ARENA.insert(Expression::Empty);
+}
 
 // TODO: change all enum values to have names
 #[derive(Debug)]
-pub enum Expression<'a> {
+pub enum Expression {
     Empty,
     Ident(String),
     Literal(String),
-    Operation(Expr<'a>, Token, Expr<'a>),
-    IfThen(Expr<'a>, Expr<'a>),
-    IfElseThen(Expr<'a>, Expr<'a>, Expr<'a>),
-    Body(Vec<Expr<'a>>),
+    Operation(Index, Token, Index),
+    IfThen(Index, Index),
+    IfElseThen(Index, Index, Index),
+    Body(Vec<Index>),
     Declaration(
-        Expr<'a>, /* expression */
-        Type,     /* type */
-        Expr<'a>, /* value */
+        Index, /* expression */
+        Type,  /* type */
+        Index, /* value */
     ),
-    FunctionHeader(String /* name */, Expr<'a> /* variables */),
-    Return(Expr<'a>),
+    FunctionHeader(String /* name */, Index /* variables */),
+    Return(Index),
 }
 
-impl Expression<'_> {
+impl Expression {
     fn get_formatted_tabs(tabs: usize) -> String {
         let mut tab_str = "".to_string();
         for _ in (0..tabs).step_by(1) {
@@ -47,8 +56,8 @@ impl Expression<'_> {
             Expression::Operation(left, token, right) => format!(
                 "\n{3}{0}:\n  {3}left: {1}\n  {3}right: {2}",
                 token.value,
-                left.get_tree_string(tabs + 2),
-                right.get_tree_string(tabs + 2),
+                Self::get_expression_string(left, tabs),
+                Self::get_expression_string(right, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
             Expression::Body(expressions) => {
@@ -57,7 +66,7 @@ impl Expression<'_> {
                 for expression in expressions {
                     str.push_str(&*format!(
                         "{1}\n  {1}({1}{0}\n  {1}),",
-                        expression.get_tree_string(tabs + 2),
+                        Self::get_expression_string(expression, tabs),
                         formatted_tabs
                     ));
                 }
@@ -65,40 +74,56 @@ impl Expression<'_> {
             }
             Expression::IfThen(condition, then) => format!(
                 "\n{2}if:\n  {2}condition: {0}\n  {2}then: {1}",
-                condition.get_tree_string(tabs + 2),
-                then.get_tree_string(tabs + 2),
+                Self::get_expression_string(condition, tabs),
+                Self::get_expression_string(then, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
             Expression::IfElseThen(condition, then, else_expr) => format!(
                 "\n{3}if:\n  {3}condition: {0}\n  {3}else: {1}\n  {3}then: {2}",
-                condition.get_tree_string(tabs + 2),
-                then.get_tree_string(tabs + 2),
-                else_expr.get_tree_string(tabs + 2),
+                Self::get_expression_string(condition, tabs),
+                Self::get_expression_string(then, tabs),
+                Self::get_expression_string(else_expr, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
             Expression::Declaration(expression, typ, value) => format!(
                 "\n{3}declaration:\n  {3}expression: {0}\n  {3}type: {1}\n  {3}value: {2}",
-                expression.get_tree_string(tabs + 2),
+                Self::get_expression_string(expression, tabs),
                 typ,
-                value.get_tree_string(tabs + 2),
+                Self::get_expression_string(value, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
             Expression::FunctionHeader(name, variables) => format!(
                 "\n{2}function:\n  {2}name: {0}\n  {2}variables: {1}",
                 name,
-                variables.get_tree_string(tabs + 2),
+                Self::get_expression_string(variables, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
             Expression::Return(expression) => format!(
                 "\n{1}return: {0}",
-                expression.get_tree_string(tabs + 2),
+                Self::get_expression_string(expression, tabs),
                 Expression::get_formatted_tabs(tabs)
             ),
         }
     }
+
+    fn get_expression_string(index: &Index, current_tabs: usize) -> String {
+        if let Some(expr) = EXPRESSION_ARENA.get(*index) {
+            expr.get_tree_string(current_tabs + 2)
+        } else {
+            "deleted".to_string()
+        }
+    }
+
+    pub fn from_index_to_string(index: &Index) -> String {
+        if let Some(expr) = EXPRESSION_ARENA.get(*index) {
+            expr.to_string()
+        } else {
+            "deleted".to_string()
+        }
+    }
 }
 
-impl ToString for Expression<'_> {
+impl ToString for Expression {
     fn to_string(&self) -> String {
         self.get_tree_string(0)
     }
